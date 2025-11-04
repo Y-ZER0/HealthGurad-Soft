@@ -8,35 +8,60 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Medical-themed color palette - High contrast for accessibility */
+    --background: 210 20% 98%;
+    --foreground: 210 25% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 210 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 210 25% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary: Medical Blue - Professional and calming */
+    --primary: 210 95% 35%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 210 95% 30%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary: Soft Green - Health and wellness */
+    --secondary: 145 70% 45%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 145 70% 40%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted: Subtle backgrounds */
+    --muted: 210 20% 95%;
+    --muted-foreground: 210 15% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent: Light blue for highlights */
+    --accent: 200 90% 88%;
+    --accent-foreground: 210 95% 30%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Alert System Colors */
+    --success: 145 70% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 45 95% 55%;
+    --warning-foreground: 210 25% 15%;
+    
+    --alert-high: 25 95% 55%;
+    --alert-high-foreground: 0 0% 100%;
+    
+    --destructive: 0 85% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Borders and inputs - High contrast */
+    --border: 210 20% 85%;
+    --input: 210 20% 90%;
+    --ring: 210 95% 35%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+    
+    /* Shadows for depth */
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.12);
+    
+    /* Transitions */
+    --transition-smooth: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,33 +81,44 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 210 30% 8%;
+    --foreground: 210 20% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 210 25% 12%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 210 25% 12%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 210 95% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 210 95% 50%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 145 60% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 145 60% 45%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 20% 18%;
+    --muted-foreground: 210 15% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 200 70% 25%;
+    --accent-foreground: 200 90% 88%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 145 60% 40%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 45 90% 50%;
+    --warning-foreground: 210 25% 15%;
+    
+    --alert-high: 25 90% 50%;
+    --alert-high-foreground: 0 0% 100%;
+    
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --border: 210 20% 25%;
+    --input: 210 20% 20%;
+    --ring: 210 95% 45%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -101,5 +137,57 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-size: 18px;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+
+  h1 {
+    @apply text-4xl;
+  }
+
+  h2 {
+    @apply text-3xl;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+}
+
+@layer components {
+  .card-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .health-stat-card {
+    @apply bg-card p-6 rounded-xl border-2 border-border transition-all duration-200 hover:shadow-lg;
+  }
+
+  .alert-critical {
+    @apply bg-destructive/10 border-destructive text-destructive-foreground border-2;
+  }
+
+  .alert-high {
+    @apply bg-orange-100 border-orange-500 text-orange-900 border-2;
+  }
+
+  .alert-warning {
+    @apply bg-yellow-100 border-yellow-500 text-yellow-900 border-2;
+  }
+
+  .alert-success {
+    @apply bg-green-100 border-green-500 text-green-900 border-2;
+  }
+
+  .btn-large {
+    @apply min-h-[48px] px-6 text-lg;
+  }
+
+  .btn-emergency {
+    @apply bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold text-xl min-h-[56px] px-8 shadow-lg;
   }
 }
