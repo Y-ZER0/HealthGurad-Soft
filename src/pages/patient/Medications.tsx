@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pill, Clock, CheckCircle2, XCircle, Calendar } from 'lucide-react';
+import { Pill, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { getMedicationsByPatientId } from '@/data/mockData';
 import { useToast } from '@/hooks/use-toast';
 
@@ -87,40 +87,6 @@ export default function Medications() {
           )}
         </CardContent>
       </Card>
-
-      {/* Weekly Calendar View */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center gap-2">
-            <Calendar className="h-6 w-6 text-primary" />
-            This Week's Schedule
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-              <div key={day} className="text-center">
-                <div className="font-semibold mb-2 text-lg">{day}</div>
-                <div className="space-y-1">
-                  {medications.slice(0, 3).map(med => (
-                    <div
-                      key={`${day}-${med.MedicationID}`}
-                      className={`p-2 rounded text-xs ${
-                        index < 3 ? 'bg-success/20 text-success' :
-                        index === 3 ? 'bg-destructive/20 text-destructive' :
-                        'bg-primary/20 text-primary'
-                      }`}
-                    >
-                      {med.MedicineName.split(' ')[0]}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* All Medications List */}
       <Card>
         <CardHeader>
