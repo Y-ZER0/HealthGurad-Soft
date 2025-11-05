@@ -17,7 +17,9 @@ import {
   getVitalRecordsByPatientId,
   getAlertsByPatientId,
   getMedicationsByPatientId,
-  getThresholdByPatientId,
+  getAlertThresholdsByPatientId,
+  getDoctorById,
+  getMedicationAdherence,
 } from '@/data/mockData';
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -31,7 +33,28 @@ export default function PatientDetail() {
   const vitals = getVitalRecordsByPatientId(Number(patientId));
   const alerts = getAlertsByPatientId(Number(patientId));
   const medications = getMedicationsByPatientId(Number(patientId));
-  const threshold = getThresholdByPatientId(Number(patientId));
+  const thresholdsList = getAlertThresholdsByPatientId(Number(patientId));
+  const adherence = getMedicationAdherence(Number(patientId));
+
+  // Convert new threshold structure to old format for compatibility
+  const threshold = thresholdsList.reduce((acc, t) => {
+    if (t.VitalType === 'BloodPressure') {
+      acc.BPSystolicMin = t.MinValue || 110;
+      acc.BPSystolicMax = t.MaxValue || 140;
+      acc.BPDiastolicMin = 70;
+      acc.BPDiastolicMax = 90;
+    } else if (t.VitalType === 'HeartRate') {
+      acc.HeartRateMin = t.MinValue || 60;
+      acc.HeartRateMax = t.MaxValue || 100;
+    } else if (t.VitalType === 'Glucose') {
+      acc.GlucoseMin = t.MinValue || 70;
+      acc.GlucoseMax = t.MaxValue || 130;
+    } else if (t.VitalType === 'Temperature') {
+      acc.TemperatureMin = t.MinValue || 97.0;
+      acc.TemperatureMax = t.MaxValue || 99.5;
+    }
+    return acc;
+  }, {} as any);
 
   const [thresholds, setThresholds] = useState(threshold || {
     BPSystolicMin: 110,

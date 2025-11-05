@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Heart, Activity, Droplets, Thermometer, AlertTriangle, Pill, TrendingUp } from 'lucide-react';
-import { getVitalRecordsByPatientId, getMedicationsByPatientId, getAlertsByPatientId } from '@/data/mockData';
+import { getVitalRecordsByPatientId, getMedicationsByPatientId, getAlertsByPatientId, getMedicationLogsByPatientId } from '@/data/mockData';
 import { format } from 'date-fns';
 
 const MOCK_PATIENT_ID = 1;
@@ -13,6 +13,28 @@ export default function PatientDashboard() {
   const medications = getMedicationsByPatientId(MOCK_PATIENT_ID);
   const alerts = getAlertsByPatientId(MOCK_PATIENT_ID).filter(a => a.Status === 'Active');
   const todayMedications = medications.slice(0, 3);
+  const medicationLogs = getMedicationLogsByPatientId(MOCK_PATIENT_ID);
+
+  // Get today's medication status from logs
+  const getMedicationStatus = (medicationId: number) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayLogs = medicationLogs.filter(log => {
+      const logDate = new Date(log.ScheduledTime);
+      logDate.setHours(0, 0, 0, 0);
+      return log.MedicationID === medicationId && logDate.getTime() === today.getTime();
+    });
+
+    if (todayLogs.length === 0) return 'Pending';
+    
+    const allTaken = todayLogs.every(log => log.Status === 'Taken');
+    const anyMissed = todayLogs.some(log => log.Status === 'Missed');
+    
+    if (allTaken) return 'Taken';
+    if (anyMissed) return 'Missed';
+    return 'Pending';
+  };
 
   const getVitalStatus = (value: number, min: number, max: number) => {
     if (value < min || value > max) return 'destructive';
@@ -149,22 +171,27 @@ export default function PatientDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {todayMedications.map(med => (
-            <div
-              key={med.MedicationID}
-              className="flex items-center justify-between p-4 bg-muted rounded-lg"
-            >
-              <div>
-                <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
-                <p className="text-muted-foreground">{med.Dosage} - {med.TimeOfDay.join(', ')}</p>
+          {todayMedications.map(med => {
+            const status = getMedicationStatus(med.MedicationID);
+            return (
+              <div
+                key={med.MedicationID}
+                className="flex items-center justify-between p-4 bg-muted rounded-lg"
+              >
+                <div>
+                  <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
+                  <p className="text-muted-foreground">{med.Dosage} - {med.TimeOfDay.join(', ')}</p>
+                </div>
+                <div className={`px-3 py-1 rounded-full font-semibold ${
+                  status === 'Taken' ? 'bg-success text-success-foreground' : 
+                  status === 'Missed' ? 'bg-destructive text-destructive-foreground' :
+                  'bg-warning text-warning-foreground'
+                }`}>
+                  {status}
+                </div>
               </div>
-              <div className={`px-3 py-1 rounded-full font-semibold ${
-                med.IsTaken ? 'bg-success text-success-foreground' : 'bg-warning text-warning-foreground'
-              }`}>
-                {med.IsTaken ? 'Taken' : 'Pending'}
-              </div>
-            </div>
-          ))}
+            );
+          })}
           <Link to="/medications">
             <Button variant="outline" className="w-full btn-large">
               View All Medications
