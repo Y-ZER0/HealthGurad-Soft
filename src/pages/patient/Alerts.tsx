@@ -18,15 +18,6 @@ export default function Alerts() {
   const activeAlerts = alerts.filter(a => a.Status === 'Active');
   const resolvedAlerts = alerts.filter(a => a.Status === 'Resolved');
 
-  const handleAcknowledge = (alertId: number) => {
-    setAlerts(prev =>
-      prev.map(a => a.AlertID === alertId ? { ...a, Status: 'Resolved' as const } : a)
-    );
-    toast({
-      title: 'Alert Acknowledged',
-      description: 'The alert has been marked as resolved',
-    });
-  };
 
   const handleRequestAssistance = (alert: any) => {
     toast({
@@ -75,31 +66,28 @@ export default function Alerts() {
 
           {showActions && alert.Status === 'Active' && (
             <div className="flex gap-3">
-              {alert.Severity === 'Critical' && (
-                <Button
-                  variant="destructive"
-                  className="flex-1 btn-large text-lg"
-                  onClick={() => handleRequestAssistance(alert)}
-                >
-                  <Phone className="h-5 w-5 mr-2" />
-                  Request Assistance
-                </Button>
-              )}
               <Button
-                variant="outline"
+                variant={alert.Severity === 'Critical' ? 'destructive' : 'default'}
                 className="flex-1 btn-large text-lg"
-                onClick={() => handleAcknowledge(alert.AlertID)}
+                onClick={() => handleRequestAssistance(alert)}
               >
-                <CheckCircle className="h-5 w-5 mr-2" />
-                Acknowledge
+                <Phone className="h-5 w-5 mr-2" />
+                Request Doctor Assistance
               </Button>
             </div>
           )}
 
-          {alert.Status === 'Resolved' && (
-            <div className="flex items-center gap-2 text-success font-semibold">
-              <CheckCircle className="h-5 w-5" />
-              Resolved
+          {alert.Status === 'Resolved' && alert.ResolvedBy && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-success font-semibold">
+                <CheckCircle className="h-5 w-5" />
+                Resolved by Doctor
+              </div>
+              {alert.ResolvedAt && (
+                <p className="text-sm text-muted-foreground">
+                  Resolved on {format(new Date(alert.ResolvedAt), 'MMM d, yyyy - h:mm a')}
+                </p>
+              )}
             </div>
           )}
         </CardContent>

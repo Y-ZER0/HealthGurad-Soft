@@ -4,18 +4,43 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Filter, Users } from 'lucide-react';
-import { getActiveAlerts, mockAlerts, getPatientById } from '@/data/mockData';
+import { AlertTriangle, Filter, Users, CheckCircle } from 'lucide-react';
+import { getActiveAlerts, mockAlerts, getPatientById, getDoctorById } from '@/data/mockData';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+
+const MOCK_DOCTOR_ID = 1;
 
 export default function AlertsDashboard() {
+  const { toast } = useToast();
+  const [alerts, setAlerts] = useState(mockAlerts);
   const [filter, setFilter] = useState<string>('all');
-  const activeAlerts = getActiveAlerts();
+  
+  const activeAlerts = alerts.filter(a => a.Status === 'Active');
 
   const criticalAlerts = activeAlerts.filter(a => a.Severity === 'Critical');
   const highAlerts = activeAlerts.filter(a => a.Severity === 'High');
   const mediumAlerts = activeAlerts.filter(a => a.Severity === 'Medium');
-  const resolvedAlerts = mockAlerts.filter(a => a.Status === 'Resolved');
+  const resolvedAlerts = alerts.filter(a => a.Status === 'Resolved');
+
+  const handleResolveAlert = (alertId: number) => {
+    setAlerts(prev =>
+      prev.map(a => 
+        a.AlertID === alertId 
+          ? { 
+              ...a, 
+              Status: 'Resolved' as const,
+              ResolvedAt: new Date().toISOString(),
+              ResolvedBy: MOCK_DOCTOR_ID
+            } 
+          : a
+      )
+    );
+    toast({
+      title: 'Alert Resolved',
+      description: 'The patient alert has been successfully resolved',
+    });
+  };
 
   const filteredActiveAlerts = filter === 'all' ? activeAlerts :
     activeAlerts.filter(a => a.Severity === filter);
@@ -176,8 +201,15 @@ export default function AlertsDashboard() {
                         </div>
 
                         <div className="flex gap-2">
+                          <Button 
+                            className="btn-large"
+                            onClick={() => handleResolveAlert(alert.AlertID)}
+                          >
+                            <CheckCircle className="h-5 w-5 mr-2" />
+                            Resolve Alert
+                          </Button>
                           <Link to={`/doctor/patient/${patient?.PatientID}`}>
-                            <Button className="btn-large">
+                            <Button variant="outline" className="btn-large">
                               View Patient
                             </Button>
                           </Link>
@@ -193,6 +225,7 @@ export default function AlertsDashboard() {
         <TabsContent value="resolved" className="space-y-4">
           {resolvedAlerts.map(alert => {
             const patient = getPatientById(alert.PatientID);
+            const resolvedByDoctor = alert.ResolvedBy ? getDoctorById(alert.ResolvedBy) : null;
             
             return (
               <Card key={alert.AlertID} className="border-success">
@@ -206,7 +239,7 @@ export default function AlertsDashboard() {
                         <div>
                           <h3 className="text-2xl font-bold">{patient?.Name}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {format(new Date(alert.Timestamp), 'MMM d, yyyy - h:mm a')}
+                            Alert: {format(new Date(alert.Timestamp), 'MMM d, yyyy - h:mm a')}
                           </p>
                         </div>
                       </div>
@@ -219,6 +252,14 @@ export default function AlertsDashboard() {
                           </Badge>
                         </div>
                         <p className="text-lg">{alert.Description}</p>
+                        {alert.ResolvedAt && (
+                          <div className="text-sm text-muted-foreground mt-2">
+                            <p>Resolved: {format(new Date(alert.ResolvedAt), 'MMM d, yyyy - h:mm a')}</p>
+                            {resolvedByDoctor && (
+                              <p>By: Dr. {resolvedByDoctor.Name}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 

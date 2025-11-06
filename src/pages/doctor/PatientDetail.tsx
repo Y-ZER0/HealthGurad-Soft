@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
   User, Heart, Activity, AlertTriangle, Pill, MessageSquare,
-  ArrowLeft, Settings, Phone, Mail, TrendingUp
+  ArrowLeft, Settings, Phone, Mail, TrendingUp, CheckCircle
 } from 'lucide-react';
 import {
   getPatientById,
@@ -24,6 +24,8 @@ import {
 import { format } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
+const MOCK_DOCTOR_ID = 1;
+
 export default function PatientDetail() {
   const { patientId } = useParams();
   const { toast } = useToast();
@@ -31,7 +33,7 @@ export default function PatientDetail() {
 
   const patient = getPatientById(Number(patientId));
   const vitals = getVitalRecordsByPatientId(Number(patientId));
-  const alerts = getAlertsByPatientId(Number(patientId));
+  const [alerts, setAlerts] = useState(getAlertsByPatientId(Number(patientId)));
   const medications = getMedicationsByPatientId(Number(patientId));
   const thresholdsList = getAlertThresholdsByPatientId(Number(patientId));
   const adherence = getMedicationAdherence(Number(patientId));
@@ -117,6 +119,25 @@ export default function PatientDetail() {
       dosage: '',
       frequency: 'Once daily',
       timeOfDay: '08:00',
+    });
+  };
+
+  const handleResolveAlert = (alertId: number) => {
+    setAlerts(prev =>
+      prev.map(a => 
+        a.AlertID === alertId 
+          ? { 
+              ...a, 
+              Status: 'Resolved' as const,
+              ResolvedAt: new Date().toISOString(),
+              ResolvedBy: MOCK_DOCTOR_ID
+            } 
+          : a
+      )
+    );
+    toast({
+      title: 'Alert Resolved',
+      description: 'The alert has been successfully resolved',
     });
   };
 
@@ -481,18 +502,32 @@ export default function PatientDetail() {
                   className={`p-4 rounded-lg ${
                     alert.Severity === 'Critical' ? 'bg-destructive/10 border border-destructive' :
                     alert.Severity === 'High' ? 'bg-orange-100 border border-orange-500' :
+                    alert.Severity === 'Low' ? 'bg-green-100 border border-green-500' :
                     'bg-yellow-100 border border-yellow-500'
                   }`}
                 >
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-semibold text-lg">{alert.AlertType}</h4>
                       <p className="text-sm mt-1">{alert.Description}</p>
                       <p className="text-xs text-muted-foreground mt-2">
                         {format(new Date(alert.Timestamp), 'MMM d, h:mm a')}
                       </p>
                     </div>
-                    <Badge>{alert.Status}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={alert.Status === 'Resolved' ? 'default' : 'secondary'}>
+                        {alert.Status}
+                      </Badge>
+                      {alert.Status === 'Active' && (
+                        <Button 
+                          size="sm"
+                          onClick={() => handleResolveAlert(alert.AlertID)}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Resolve
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
