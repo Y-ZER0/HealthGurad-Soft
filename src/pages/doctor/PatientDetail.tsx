@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
   User, Heart, Activity, AlertTriangle, Pill, MessageSquare,
-  ArrowLeft, Settings, Phone, Mail, TrendingUp, CheckCircle
+  ArrowLeft, Settings, Phone, Mail, TrendingUp, CheckCircle, Trash2
 } from 'lucide-react';
 import {
   getPatientById,
@@ -34,7 +34,7 @@ export default function PatientDetail() {
   const patient = getPatientById(Number(patientId));
   const vitals = getVitalRecordsByPatientId(Number(patientId));
   const [alerts, setAlerts] = useState(getAlertsByPatientId(Number(patientId)));
-  const medications = getMedicationsByPatientId(Number(patientId));
+  const [medications, setMedications] = useState(getMedicationsByPatientId(Number(patientId)));
   const thresholdsList = getAlertThresholdsByPatientId(Number(patientId));
   const adherence = getMedicationAdherence(Number(patientId));
 
@@ -138,6 +138,14 @@ export default function PatientDetail() {
     toast({
       title: 'Alert Resolved',
       description: 'The alert has been successfully resolved',
+    });
+  };
+
+  const handleDeleteMedication = (medicationId: number, medicineName: string) => {
+    setMedications(prev => prev.filter(med => med.MedicationID !== medicationId));
+    toast({
+      title: 'Medication Deleted',
+      description: `${medicineName} has been removed from the patient's medications`,
     });
   };
 
@@ -600,11 +608,21 @@ export default function PatientDetail() {
             <CardContent className="space-y-3">
               {medications.map(med => (
                 <div key={med.MedicationID} className="p-4 bg-muted rounded-lg">
-                  <div>
-                    <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
-                    <p className="text-muted-foreground mt-1">
-                      {med.Dosage} • {med.Frequency} • {med.TimeOfDay.join(', ')}
-                    </p>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
+                      <p className="text-muted-foreground mt-1">
+                        {med.Dosage} • {med.Frequency} • {med.TimeOfDay.join(', ')}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      size="icon"
+                      onClick={() => handleDeleteMedication(med.MedicationID, med.MedicineName)}
+                      className="h-9 w-9"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
