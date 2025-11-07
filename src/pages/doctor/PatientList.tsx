@@ -172,7 +172,7 @@ export default function PatientList() {
                               </Badge>
                             </div>
                             
-                            <div className="grid md:grid-cols-3 gap-4 text-sm">
+                            <div className="grid md:grid-cols-2 gap-4 text-sm">
                               <div>
                                 <p className="text-muted-foreground">Last Vitals</p>
                                 <p className="font-semibold text-base">
@@ -186,18 +186,6 @@ export default function PatientList() {
                                 }`}>
                                   {alerts.length}
                                 </p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Overall Status</p>
-                                <Badge className={`text-base ${
-                                  status === 'critical' ? 'bg-destructive' :
-                                  status === 'warning' ? 'bg-warning' :
-                                  'bg-success'
-                                }`}>
-                                  {status === 'critical' ? 'Needs Attention' :
-                                   status === 'warning' ? 'Fair' :
-                                   'Good'}
-                                </Badge>
                               </div>
                             </div>
                           </div>
