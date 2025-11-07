@@ -77,7 +77,7 @@ export default function PatientList() {
       </Card>
 
       {/* Stats Overview */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-1 gap-4">
         <Card className="border-primary border-2">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -86,34 +86,6 @@ export default function PatientList() {
                 <p className="text-4xl font-bold text-primary mt-2">{myPatients.length}</p>
               </div>
               <Users className="h-12 w-12 text-primary/30" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-destructive border-2">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground font-semibold">Needs Attention</p>
-                <p className="text-4xl font-bold text-destructive mt-2">
-                  {myPatients.filter(p => getPatientStatus(p.PatientID) === 'critical').length}
-                </p>
-              </div>
-              <AlertTriangle className="h-12 w-12 text-destructive/30" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-success border-2">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground font-semibold">Stable</p>
-                <p className="text-4xl font-bold text-success mt-2">
-                  {myPatients.filter(p => getPatientStatus(p.PatientID) === 'good').length}
-                </p>
-              </div>
-              <Activity className="h-12 w-12 text-success/30" />
             </div>
           </CardContent>
         </Card>

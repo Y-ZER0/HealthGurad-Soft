@@ -158,7 +158,7 @@ export default function DoctorDashboard() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 gap-4">
         <Link to="/doctor/patients">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer border-primary border-2">
             <CardContent className="p-6 text-center">
@@ -178,14 +178,6 @@ export default function DoctorDashboard() {
             </CardContent>
           </Card>
         </Link>
-
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer border-secondary border-2">
-          <CardContent className="p-6 text-center">
-            <Pill className="h-12 w-12 mx-auto mb-3 text-secondary" />
-            <h3 className="text-xl font-semibold">Prescriptions</h3>
-            <p className="text-muted-foreground mt-2">Manage medications</p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
