@@ -3,28 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Bell, CheckCircle, Phone, Filter } from 'lucide-react';
+import { AlertTriangle, Bell, CheckCircle, Filter } from 'lucide-react';
 import { getAlertsByPatientId } from '@/data/mockData';
 import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
 
 const MOCK_PATIENT_ID = 1;
 
 export default function Alerts() {
-  const { toast } = useToast();
   const [alerts, setAlerts] = useState(getAlertsByPatientId(MOCK_PATIENT_ID));
   const [filter, setFilter] = useState<string>('all');
 
   const activeAlerts = alerts.filter(a => a.Status === 'Active');
   const resolvedAlerts = alerts.filter(a => a.Status === 'Resolved');
-
-
-  const handleRequestAssistance = (alert: any) => {
-    toast({
-      title: 'Assistance Requested',
-      description: 'Your doctor has been notified and will contact you soon',
-    });
-  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -63,19 +53,6 @@ export default function Alerts() {
           </div>
 
           <p className="text-lg mb-4">{alert.Description}</p>
-
-          {showActions && alert.Status === 'Active' && (
-            <div className="flex gap-3">
-              <Button
-                variant={alert.Severity === 'Critical' ? 'destructive' : 'default'}
-                className="flex-1 btn-large text-lg"
-                onClick={() => handleRequestAssistance(alert)}
-              >
-                <Phone className="h-5 w-5 mr-2" />
-                Request Doctor Assistance
-              </Button>
-            </div>
-          )}
 
           {alert.Status === 'Resolved' && alert.ResolvedBy && (
             <div className="space-y-2">
