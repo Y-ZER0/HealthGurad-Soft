@@ -600,14 +600,11 @@ export default function PatientDetail() {
             <CardContent className="space-y-3">
               {medications.map(med => (
                 <div key={med.MedicationID} className="p-4 bg-muted rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
-                      <p className="text-muted-foreground mt-1">
-                        {med.Dosage} • {med.Frequency} • {med.TimeOfDay.join(', ')}
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm">Edit</Button>
+                  <div>
+                    <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
+                    <p className="text-muted-foreground mt-1">
+                      {med.Dosage} • {med.Frequency} • {med.TimeOfDay.join(', ')}
+                    </p>
                   </div>
                 </div>
               ))}
