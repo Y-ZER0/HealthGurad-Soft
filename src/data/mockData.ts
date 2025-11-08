@@ -471,12 +471,13 @@ export const mockAlerts: Alert[] = [
   },
 ];
 
-// Generate medication logs for the past 7 days
+// Generate medication logs for the past 7 days plus upcoming doses
 const generateMedicationLogs = (): MedicationLog[] => {
   const logs: MedicationLog[] = [];
   let logID = 1;
 
   mockMedications.forEach(medication => {
+    // Generate logs for past 7 days
     for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
       medication.TimeOfDay.forEach(time => {
         const scheduledDate = new Date();
@@ -516,6 +517,77 @@ const generateMedicationLogs = (): MedicationLog[] => {
         });
       });
     }
+
+    // Add upcoming doses for better testing (next 24 hours)
+    for (let dayOffset = 1; dayOffset <= 2; dayOffset++) {
+      medication.TimeOfDay.forEach(time => {
+        const scheduledDate = new Date();
+        scheduledDate.setDate(scheduledDate.getDate() + dayOffset);
+        const [hours, minutes] = time.split(':');
+        scheduledDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+        logs.push({
+          LogID: logID++,
+          MedicationID: medication.MedicationID,
+          PatientID: medication.PatientID,
+          ScheduledTime: scheduledDate.toISOString(),
+          TakenTime: undefined,
+          Status: 'Pending',
+          Notes: undefined
+        });
+      });
+    }
+  });
+
+  // Add some additional pending medications for right now/very soon for Patient 1
+  const now = new Date();
+  
+  // Lisinopril - due in 30 minutes
+  const lisinoprilTime = new Date(now.getTime() + 30 * 60 * 1000);
+  logs.push({
+    LogID: logID++,
+    MedicationID: 1,
+    PatientID: 1,
+    ScheduledTime: lisinoprilTime.toISOString(),
+    TakenTime: undefined,
+    Status: 'Pending',
+    Notes: undefined
+  });
+
+  // Aspirin - due in 45 minutes
+  const aspirinTime = new Date(now.getTime() + 45 * 60 * 1000);
+  logs.push({
+    LogID: logID++,
+    MedicationID: 4,
+    PatientID: 1,
+    ScheduledTime: aspirinTime.toISOString(),
+    TakenTime: undefined,
+    Status: 'Pending',
+    Notes: undefined
+  });
+
+  // Metformin - due in 1 hour
+  const metforminTime = new Date(now.getTime() + 60 * 60 * 1000);
+  logs.push({
+    LogID: logID++,
+    MedicationID: 2,
+    PatientID: 1,
+    ScheduledTime: metforminTime.toISOString(),
+    TakenTime: undefined,
+    Status: 'Pending',
+    Notes: undefined
+  });
+
+  // Atorvastatin - due in 1.5 hours
+  const atorvastatinTime = new Date(now.getTime() + 90 * 60 * 1000);
+  logs.push({
+    LogID: logID++,
+    MedicationID: 3,
+    PatientID: 1,
+    ScheduledTime: atorvastatinTime.toISOString(),
+    TakenTime: undefined,
+    Status: 'Pending',
+    Notes: undefined
   });
 
   return logs;
