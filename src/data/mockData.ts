@@ -54,7 +54,7 @@ export interface MedicationLog {
   PatientID: number;
   ScheduledTime: string;
   TakenTime?: string;
-  Status: 'Pending' | 'Taken' | 'Missed' | 'Skipped';
+  Status: 'Pending' | 'Taken' | 'Missed';
   Notes?: string;
 }
 
@@ -490,7 +490,7 @@ const generateMedicationLogs = (): MedicationLog[] => {
         
         // Simulate realistic adherence patterns
         const random = Math.random();
-        let status: 'Pending' | 'Taken' | 'Missed' | 'Skipped' = 'Pending';
+        let status: 'Pending' | 'Taken' | 'Missed' = 'Pending';
         let takenTime: string | undefined = undefined;
 
         if (isOverdue) {
@@ -499,10 +499,8 @@ const generateMedicationLogs = (): MedicationLog[] => {
             const takenDate = new Date(scheduledDate);
             takenDate.setMinutes(takenDate.getMinutes() + Math.floor(Math.random() * 30));
             takenTime = takenDate.toISOString();
-          } else if (random < 0.95) {
-            status = 'Missed';
           } else {
-            status = 'Skipped';
+            status = 'Missed';
           }
         }
 
@@ -513,7 +511,7 @@ const generateMedicationLogs = (): MedicationLog[] => {
           ScheduledTime: scheduledDate.toISOString(),
           TakenTime: takenTime,
           Status: status,
-          Notes: status === 'Skipped' ? 'Patient felt nauseous' : undefined
+          Notes: undefined
         });
       });
     }
@@ -693,7 +691,7 @@ export const getUnreadMessagesByRecipientId = (recipientId: number) => mockMessa
 // Calculate medication adherence percentage for a patient
 export const getMedicationAdherence = (patientId: number): number => {
   const logs = getMedicationLogsByPatientId(patientId);
-  const completedLogs = logs.filter(log => log.Status === 'Taken' || log.Status === 'Missed' || log.Status === 'Skipped');
+  const completedLogs = logs.filter(log => log.Status === 'Taken' || log.Status === 'Missed');
   
   if (completedLogs.length === 0) return 100;
   
