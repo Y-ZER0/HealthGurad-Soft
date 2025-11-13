@@ -1,9 +1,22 @@
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Heart, Activity, Droplets, Thermometer, AlertTriangle, Pill, TrendingUp } from 'lucide-react';
-import { getVitalRecordsByPatientId, getMedicationsByPatientId, getAlertsByPatientId, getMedicationLogsByPatientId } from '@/data/mockData';
-import { format } from 'date-fns';
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Heart,
+  Activity,
+  Droplets,
+  Thermometer,
+  AlertTriangle,
+  Pill,
+  TrendingUp,
+} from "lucide-react";
+import {
+  getVitalRecordsByPatientId,
+  getMedicationsByPatientId,
+  getAlertsByPatientId,
+  getMedicationLogsByPatientId,
+} from "@/data/mockData";
+import { format } from "date-fns";
 
 const MOCK_PATIENT_ID = 1;
 
@@ -11,7 +24,9 @@ export default function PatientDashboard() {
   const vitals = getVitalRecordsByPatientId(MOCK_PATIENT_ID);
   const latestVitals = vitals[0];
   const medications = getMedicationsByPatientId(MOCK_PATIENT_ID);
-  const alerts = getAlertsByPatientId(MOCK_PATIENT_ID).filter(a => a.Status === 'Active');
+  const alerts = getAlertsByPatientId(MOCK_PATIENT_ID).filter(
+    (a) => a.Status === "Active"
+  );
   const todayMedications = medications.slice(0, 3);
   const medicationLogs = getMedicationLogsByPatientId(MOCK_PATIENT_ID);
 
@@ -19,35 +34,42 @@ export default function PatientDashboard() {
   const getMedicationStatus = (medicationId: number) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    const todayLogs = medicationLogs.filter(log => {
+
+    const todayLogs = medicationLogs.filter((log) => {
       const logDate = new Date(log.ScheduledTime);
       logDate.setHours(0, 0, 0, 0);
-      return log.MedicationID === medicationId && logDate.getTime() === today.getTime();
+      return (
+        log.MedicationID === medicationId &&
+        logDate.getTime() === today.getTime()
+      );
     });
 
-    if (todayLogs.length === 0) return 'Pending';
-    
-    const allTaken = todayLogs.every(log => log.Status === 'Taken');
-    const anyMissed = todayLogs.some(log => log.Status === 'Missed');
-    
-    if (allTaken) return 'Taken';
-    if (anyMissed) return 'Missed';
-    return 'Pending';
+    if (todayLogs.length === 0) return "Pending";
+
+    const allTaken = todayLogs.every((log) => log.Status === "Taken");
+    const anyMissed = todayLogs.some((log) => log.Status === "Missed");
+
+    if (allTaken) return "Taken";
+    if (anyMissed) return "Missed";
+    return "Pending";
   };
 
   const getVitalStatus = (value: number, min: number, max: number) => {
-    if (value < min || value > max) return 'destructive';
-    if (value < min + 5 || value > max - 5) return 'warning';
-    return 'success';
+    if (value < min || value > max) return "destructive";
+    if (value < min + 5 || value > max - 5) return "warning";
+    return "success";
   };
 
   const VitalCard = ({ title, value, unit, icon: Icon, status }: any) => (
-    <Card className={`health-stat-card ${
-      status === 'destructive' ? 'border-destructive' :
-      status === 'warning' ? 'border-warning' :
-      'border-success'
-    }`}>
+    <Card
+      className={`health-stat-card ${
+        status === "destructive"
+          ? "border-destructive"
+          : status === "warning"
+          ? "border-warning"
+          : "border-success"
+      }`}
+    >
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <Icon className="h-5 w-5" />
@@ -55,15 +77,20 @@ export default function PatientDashboard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className={`text-3xl font-bold ${
-          status === 'destructive' ? 'text-destructive' :
-          status === 'warning' ? 'text-warning' :
-          'text-success'
-        }`}>
+        <div
+          className={`text-3xl font-bold ${
+            status === "destructive"
+              ? "text-destructive"
+              : status === "warning"
+              ? "text-warning"
+              : "text-success"
+          }`}
+        >
           {value} <span className="text-xl">{unit}</span>
         </div>
         <p className="text-sm text-muted-foreground mt-2">
-          {latestVitals && format(new Date(latestVitals.DateLogged), 'MMM d, h:mm a')}
+          {latestVitals &&
+            format(new Date(latestVitals.DateLogged), "MMM d, h:mm a")}
         </p>
       </CardContent>
     </Card>
@@ -74,7 +101,9 @@ export default function PatientDashboard() {
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-primary to-primary-hover text-primary-foreground p-8 rounded-xl shadow-lg">
         <h1 className="text-4xl font-bold mb-2">Welcome, Robert!</h1>
-        <p className="text-xl opacity-90">Here's your health overview for today</p>
+        <p className="text-xl opacity-90">
+          Here's your health overview for today
+        </p>
       </div>
 
       {/* Active Alerts */}
@@ -87,14 +116,17 @@ export default function PatientDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {alerts.map(alert => (
+            {alerts.map((alert) => (
               <div
                 key={alert.AlertID}
                 className={`p-4 rounded-lg ${
-                  alert.Severity === 'Critical' ? 'alert-critical' :
-                  alert.Severity === 'High' ? 'alert-high' :
-                  alert.Severity === 'Medium' ? 'alert-warning' :
-                  'alert-success'
+                  alert.Severity === "Critical"
+                    ? "alert-critical"
+                    : alert.Severity === "High"
+                    ? "alert-high"
+                    : alert.Severity === "Medium"
+                    ? "alert-warning"
+                    : "alert-success"
                 }`}
               >
                 <div className="flex justify-between items-start">
@@ -102,7 +134,7 @@ export default function PatientDashboard() {
                     <h4 className="font-semibold text-lg">{alert.AlertType}</h4>
                     <p className="mt-1">{alert.Description}</p>
                     <p className="text-sm mt-2 opacity-75">
-                      {format(new Date(alert.Timestamp), 'MMM d, h:mm a')}
+                      {format(new Date(alert.Timestamp), "MMM d, h:mm a")}
                     </p>
                   </div>
                   <span className="px-3 py-1 rounded-full bg-white/20 font-semibold text-sm">
@@ -134,7 +166,11 @@ export default function PatientDashboard() {
                 value={`${latestVitals.BloodPressureSystolic}/${latestVitals.BloodPressureDiastolic}`}
                 unit="mmHg"
                 icon={Heart}
-                status={getVitalStatus(latestVitals.BloodPressureSystolic, 110, 140)}
+                status={getVitalStatus(
+                  latestVitals.BloodPressureSystolic,
+                  110,
+                  140
+                )}
               />
               <VitalCard
                 title="Heart Rate"
@@ -171,7 +207,7 @@ export default function PatientDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {todayMedications.map(med => {
+          {todayMedications.map((med) => {
             const status = getMedicationStatus(med.MedicationID);
             return (
               <div
@@ -180,13 +216,19 @@ export default function PatientDashboard() {
               >
                 <div>
                   <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
-                  <p className="text-muted-foreground">{med.Dosage} - {med.TimeOfDay.join(', ')}</p>
+                  <p className="text-muted-foreground">
+                    {med.Dosage} - {med.TimeOfDay.join(", ")}
+                  </p>
                 </div>
-                <div className={`px-3 py-1 rounded-full font-semibold ${
-                  status === 'Taken' ? 'bg-success text-success-foreground' : 
-                  status === 'Missed' ? 'bg-destructive text-destructive-foreground' :
-                  'bg-warning text-warning-foreground'
-                }`}>
+                <div
+                  className={`px-3 py-1 rounded-full font-semibold ${
+                    status === "Taken"
+                      ? "bg-success text-success-foreground"
+                      : status === "Missed"
+                      ? "bg-destructive text-destructive-foreground"
+                      : "bg-warning text-warning-foreground"
+                  }`}
+                >
                   {status}
                 </div>
               </div>
@@ -209,7 +251,11 @@ export default function PatientDashboard() {
           </Button>
         </Link>
         <Link to="/history">
-          <Button variant="secondary" className="w-full btn-large h-24 text-xl" size="lg">
+          <Button
+            variant="secondary"
+            className="w-full btn-large h-24 text-xl"
+            size="lg"
+          >
             <TrendingUp className="h-8 w-8 mr-3" />
             View Health Trends
           </Button>
