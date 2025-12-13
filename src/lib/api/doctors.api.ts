@@ -44,6 +44,10 @@ class DoctorsApi extends ApiClient {
   async getDashboard(id: number): Promise<DoctorDashboardDto> {
     return this.request<DoctorDashboardDto>(`/doctors/${id}/dashboard`);
   }
+
+  async getAllDoctors(): Promise<DoctorDto[]> {
+    return this.request<DoctorDto[]>("/doctors");
+  }
 }
 
 export const doctorsApi = new DoctorsApi();

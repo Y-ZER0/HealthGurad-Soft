@@ -1,35 +1,66 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { Heart, Activity, Droplets, Thermometer, Save, TrendingUp } from 'lucide-react';
-import { format } from 'date-fns';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Heart,
+  Activity,
+  Droplets,
+  Thermometer,
+  Save,
+  TrendingUp,
+  Loader2,
+} from "lucide-react";
+import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { useVitalRecords } from "@/hooks/useVitalRecords";
+import { useAlertThresholds } from "@/hooks/useAlertThresholds";
 
 export default function LogVitals() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { logVitalRecord, isLoading } = useVitalRecords();
+  const { thresholds, fetchPatientThresholds } = useAlertThresholds();
+
   const [formData, setFormData] = useState({
-    systolic: '',
-    diastolic: '',
-    heartRate: '',
-    glucose: '',
-    temperature: '',
+    systolic: "",
+    diastolic: "",
+    heartRate: "",
+    glucose: "",
+    temperature: "",
     date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Fetch patient's alert thresholds on mount
+  useEffect(() => {
+    if (user?.profileId) {
+      fetchPatientThresholds(user.profileId);
+    }
+  }, [user?.profileId]);
+
   const validateField = (name: string, value: string) => {
     const numValue = parseFloat(value);
-    const validations: Record<string, { min: number; max: number; label: string }> = {
-      systolic: { min: 80, max: 200, label: 'Systolic BP' },
-      diastolic: { min: 50, max: 120, label: 'Diastolic BP' },
-      heartRate: { min: 40, max: 150, label: 'Heart Rate' },
-      glucose: { min: 40, max: 400, label: 'Glucose' },
-      temperature: { min: 95, max: 105, label: 'Temperature' },
+    const validations: Record<
+      string,
+      { min: number; max: number; label: string }
+    > = {
+      systolic: { min: 80, max: 200, label: "Systolic BP" },
+      diastolic: { min: 50, max: 120, label: "Diastolic BP" },
+      heartRate: { min: 40, max: 150, label: "Heart Rate" },
+      glucose: { min: 40, max: 400, label: "Glucose" },
+      temperature: { min: 95, max: 105, label: "Temperature" },
     };
 
     if (value && validations[name]) {
@@ -37,32 +68,42 @@ export default function LogVitals() {
       if (numValue < min || numValue > max) {
         return `${label} should be between ${min} and ${max}`;
       }
-      if (name === 'systolic' && formData.diastolic && numValue <= parseFloat(formData.diastolic)) {
-        return 'Systolic must be higher than diastolic';
+      if (
+        name === "systolic" &&
+        formData.diastolic &&
+        numValue <= parseFloat(formData.diastolic)
+      ) {
+        return "Systolic must be higher than diastolic";
       }
     }
-    return '';
+    return "";
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    const error = validateField(name, value);
-    setErrors(prev => ({ ...prev, [name]: error }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const error = validateField(name, value);
+    setErrors((prevErrors) => ({ ...prevErrors, [name]: error }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate all fields
     const newErrors: Record<string, string> = {};
-    Object.keys(formData).forEach(key => {
-      if (key !== 'date') {
-        const error = validateField(key, formData[key as keyof typeof formData]);
+    Object.keys(formData).forEach((key) => {
+      if (key !== "date") {
+        const error = validateField(
+          key,
+          formData[key as keyof typeof formData]
+        );
         if (error) newErrors[key] = error;
         if (!formData[key as keyof typeof formData]) {
-          newErrors[key] = 'This field is required';
+          newErrors[key] = "This field is required";
         }
       }
     });
@@ -70,32 +111,73 @@ export default function LogVitals() {
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       toast({
-        title: 'Validation Error',
-        description: 'Please correct the errors in the form',
-        variant: 'destructive',
+        title: "Validation Error",
+        description: "Please correct the errors in the form",
+        variant: "destructive",
       });
       return;
     }
 
-    // Success
-    toast({
-      title: 'Vital Signs Saved!',
-      description: 'Your health data has been recorded successfully.',
-    });
+    // Check if user is authenticated
+    if (!user?.profileId) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in to log vital signs.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Reset form
-    setFormData({
-      systolic: '',
-      diastolic: '',
-      heartRate: '',
-      glucose: '',
-      temperature: '',
-      date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-    });
-    setErrors({});
+    try {
+      // Call API to log vital record
+      await logVitalRecord({
+        patientId: user.profileId,
+        bloodPressureSystolic: parseInt(formData.systolic),
+        bloodPressureDiastolic: parseInt(formData.diastolic),
+        heartRate: parseInt(formData.heartRate),
+        glucoseLevel: parseFloat(formData.glucose),
+        temperature: parseFloat(formData.temperature),
+        dateLogged: formData.date,
+      });
+
+      // Success
+      toast({
+        title: "Vital Signs Saved!",
+        description: "Your health data has been recorded successfully.",
+      });
+
+      // Reset form
+      setFormData({
+        systolic: "",
+        diastolic: "",
+        heartRate: "",
+        glucose: "",
+        temperature: "",
+        date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      });
+      setErrors({});
+
+      // Optionally navigate to history page
+      // navigate('/history');
+    } catch (error: any) {
+      toast({
+        title: "Error Saving Vital Signs",
+        description:
+          error.message || "Failed to save vital signs. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const FormField = ({ label, name, icon: Icon, unit, placeholder }: any) => (
+  const renderFormField = (
+    label: string,
+    name: string,
+    Icon: React.ComponentType<{ className?: string }>,
+    unit: string,
+    placeholder: string,
+    value: string,
+    error?: string
+  ) => (
     <div className="space-y-2">
       <Label htmlFor={name} className="text-lg flex items-center gap-2">
         <Icon className="h-5 w-5 text-primary" />
@@ -106,19 +188,23 @@ export default function LogVitals() {
           id={name}
           name={name}
           type="number"
-          step={name === 'temperature' ? '0.1' : '1'}
-          value={formData[name as keyof typeof formData]}
+          step={name === "temperature" || name === "glucose" ? "0.1" : "1"}
+          value={value}
           onChange={handleChange}
+          onBlur={handleBlur}
           placeholder={placeholder}
           className="text-xl h-14"
           aria-label={label}
+          disabled={isLoading}
         />
         <div className="flex items-center justify-center bg-muted px-4 rounded-lg min-w-[80px]">
-          <span className="text-lg font-semibold text-muted-foreground">{unit}</span>
+          <span className="text-lg font-semibold text-muted-foreground">
+            {unit}
+          </span>
         </div>
       </div>
-      {errors[name] && (
-        <p className="text-destructive text-sm font-semibold">{errors[name]}</p>
+      {error && (
+        <p className="text-destructive text-sm font-semibold">{error}</p>
       )}
     </div>
   );
@@ -148,52 +234,64 @@ export default function LogVitals() {
                 <h3 className="text-xl font-semibold">Blood Pressure</h3>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
-                <FormField
-                  label="Systolic (Top Number)"
-                  name="systolic"
-                  icon={Heart}
-                  unit="mmHg"
-                  placeholder="120"
-                />
-                <FormField
-                  label="Diastolic (Bottom Number)"
-                  name="diastolic"
-                  icon={Heart}
-                  unit="mmHg"
-                  placeholder="80"
-                />
+                {renderFormField(
+                  "Systolic (Top Number)",
+                  "systolic",
+                  Heart,
+                  "mmHg",
+                  "120",
+                  formData.systolic,
+                  errors.systolic
+                )}
+                {renderFormField(
+                  "Diastolic (Bottom Number)",
+                  "diastolic",
+                  Heart,
+                  "mmHg",
+                  "80",
+                  formData.diastolic,
+                  errors.diastolic
+                )}
               </div>
             </div>
 
             {/* Other Vitals */}
             <div className="grid md:grid-cols-2 gap-6">
-              <FormField
-                label="Heart Rate"
-                name="heartRate"
-                icon={Activity}
-                unit="bpm"
-                placeholder="72"
-              />
-              <FormField
-                label="Blood Glucose"
-                name="glucose"
-                icon={Droplets}
-                unit="mg/dL"
-                placeholder="95"
-              />
+              {renderFormField(
+                "Heart Rate",
+                "heartRate",
+                Activity,
+                "bpm",
+                "72",
+                formData.heartRate,
+                errors.heartRate
+              )}
+              {renderFormField(
+                "Blood Glucose",
+                "glucose",
+                Droplets,
+                "mg/dL",
+                "95",
+                formData.glucose,
+                errors.glucose
+              )}
             </div>
 
-            <FormField
-              label="Body Temperature"
-              name="temperature"
-              icon={Thermometer}
-              unit="°F"
-              placeholder="98.6"
-            />
+            {renderFormField(
+              "Body Temperature",
+              "temperature",
+              Thermometer,
+              "°F",
+              "98.6",
+              formData.temperature,
+              errors.temperature
+            )}
 
             {/* Date Time */}
             <div className="space-y-2">
-              <Label htmlFor="date" className="text-lg">Date & Time</Label>
+              <Label htmlFor="date" className="text-lg">
+                Date & Time
+              </Label>
               <Input
                 id="date"
                 name="date"
@@ -201,21 +299,37 @@ export default function LogVitals() {
                 value={formData.date}
                 onChange={handleChange}
                 className="text-lg h-14"
+                disabled={isLoading}
               />
             </div>
 
             {/* Action Buttons */}
             <div className="flex gap-4 pt-4">
-              <Button type="submit" size="lg" className="flex-1 btn-large text-lg">
-                <Save className="h-6 w-6 mr-2" />
-                Save Reading
+              <Button
+                type="submit"
+                size="lg"
+                className="flex-1 btn-large text-lg"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-6 w-6 mr-2" />
+                    Save Reading
+                  </>
+                )}
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 size="lg"
                 className="flex-1 btn-large text-lg"
-                onClick={() => navigate('/history')}
+                onClick={() => navigate("/history")}
+                disabled={isLoading}
               >
                 <TrendingUp className="h-6 w-6 mr-2" />
                 View Charts
@@ -225,16 +339,37 @@ export default function LogVitals() {
         </CardContent>
       </Card>
 
-      {/* Info Card */}
+      {/* Info Card - Dynamic Thresholds */}
       <Card className="bg-accent">
         <CardContent className="p-6">
-          <h3 className="font-semibold text-lg mb-2">Normal Ranges</h3>
+          <h3 className="font-semibold text-lg mb-2">
+            {thresholds
+              ? "Your Personalized Normal Ranges"
+              : "Standard Normal Ranges"}
+          </h3>
           <ul className="space-y-1 text-sm">
-            <li>• Blood Pressure: 110-140 / 70-90 mmHg</li>
-            <li>• Heart Rate: 60-100 bpm</li>
-            <li>• Blood Glucose: 70-130 mg/dL</li>
+            <li>
+              • Blood Pressure: {thresholds?.systolicMin || 110}-
+              {thresholds?.systolicMax || 140} /{" "}
+              {thresholds?.diastolicMin || 70}-{thresholds?.diastolicMax || 90}{" "}
+              mmHg
+            </li>
+            <li>
+              • Heart Rate: {thresholds?.heartRateMin || 60}-
+              {thresholds?.heartRateMax || 100} bpm
+            </li>
+            <li>
+              • Blood Glucose: {thresholds?.glucoseMin || 70}-
+              {thresholds?.glucoseMax || 130} mg/dL
+            </li>
             <li>• Temperature: 97.0-99.5 °F</li>
           </ul>
+          {thresholds && (
+            <p className="text-xs text-muted-foreground mt-3 italic">
+              These ranges have been customized by your doctor based on your
+              health profile.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

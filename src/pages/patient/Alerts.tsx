@@ -1,68 +1,116 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Bell, CheckCircle, Filter } from 'lucide-react';
-import { getAlertsByPatientId } from '@/data/mockData';
-import { format } from 'date-fns';
-
-const MOCK_PATIENT_ID = 1;
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertTriangle,
+  Bell,
+  CheckCircle,
+  Filter,
+  Loader2,
+} from "lucide-react";
+import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
+import { useAlerts } from "@/hooks/useAlerts";
 
 export default function Alerts() {
-  const [alerts, setAlerts] = useState(getAlertsByPatientId(MOCK_PATIENT_ID));
-  const [filter, setFilter] = useState<string>('all');
+  const { user } = useAuth();
+  const { alerts, fetchAlertsByPatient, isLoading } = useAlerts();
+  const [filter, setFilter] = useState<string>("all");
 
-  const activeAlerts = alerts.filter(a => a.Status === 'Active');
-  const resolvedAlerts = alerts.filter(a => a.Status === 'Resolved');
+  // Fetch alerts on mount
+  useEffect(() => {
+    if (user?.profileId) {
+      fetchAlertsByPatient(user.profileId);
+    }
+  }, [user?.profileId]);
+
+  // Separate active and resolved alerts
+  const activeAlerts = useMemo(
+    () => alerts.filter((a) => a.status === "Active"),
+    [alerts]
+  );
+
+  const resolvedAlerts = useMemo(
+    () => alerts.filter((a) => a.status === "Resolved"),
+    [alerts]
+  );
+
+  // Count alerts by severity
+  const alertCounts = useMemo(
+    () => ({
+      critical: activeAlerts.filter((a) => a.severity === "Critical").length,
+      high: activeAlerts.filter((a) => a.severity === "High").length,
+      medium: activeAlerts.filter((a) => a.severity === "Medium").length,
+      resolved: resolvedAlerts.length,
+    }),
+    [activeAlerts, resolvedAlerts]
+  );
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'Critical': return 'destructive';
-      case 'High': return 'alert-high';
-      case 'Medium': return 'warning';
-      case 'Low': return 'success';
-      default: return 'muted';
+      case "Critical":
+        return "destructive";
+      case "High":
+        return "alert-high";
+      case "Medium":
+        return "warning";
+      case "Low":
+        return "success";
+      default:
+        return "muted";
     }
   };
 
   const AlertCard = ({ alert, showActions = true }: any) => {
-    const colorClass = getSeverityColor(alert.Severity);
-    
+    const colorClass = getSeverityColor(alert.severity);
+
     return (
-      <Card className={`border-2 ${
-        alert.Severity === 'Critical' ? 'border-destructive shadow-lg' :
-        alert.Severity === 'High' ? 'border-orange-500' :
-        alert.Severity === 'Medium' ? 'border-yellow-500' :
-        'border-green-500'
-      }`}>
+      <Card
+        className={`border-2 ${
+          alert.severity === "Critical"
+            ? "border-destructive shadow-lg"
+            : alert.severity === "High"
+            ? "border-orange-500"
+            : alert.severity === "Medium"
+            ? "border-yellow-500"
+            : "border-green-500"
+        }`}
+      >
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
               <AlertTriangle className={`h-8 w-8 text-${colorClass}`} />
               <div>
-                <h3 className="text-2xl font-bold">{alert.AlertType}</h3>
+                <h3 className="text-2xl font-bold">{alert.alertType}</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {format(new Date(alert.Timestamp), 'MMM d, yyyy - h:mm a')}
+                  {alert.timestampFormatted}
                 </p>
               </div>
             </div>
-            <Badge variant={alert.Severity === 'Critical' ? 'destructive' : 'default'} className="text-base px-3 py-1">
-              {alert.Severity}
+            <Badge
+              variant={
+                alert.severity === "Critical" ? "destructive" : "default"
+              }
+              className="text-base px-3 py-1"
+            >
+              {alert.severity}
             </Badge>
           </div>
 
-          <p className="text-lg mb-4">{alert.Description}</p>
+          <p className="text-lg mb-4">{alert.description}</p>
 
-          {alert.Status === 'Resolved' && alert.ResolvedBy && (
+          {alert.status === "Resolved" && alert.resolvedByDoctorName && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-success font-semibold">
                 <CheckCircle className="h-5 w-5" />
-                Resolved by Doctor
+                Resolved by {alert.resolvedByDoctorName}
               </div>
-              {alert.ResolvedAt && (
+              {alert.resolvedAt && (
                 <p className="text-sm text-muted-foreground">
-                  Resolved on {format(new Date(alert.ResolvedAt), 'MMM d, yyyy - h:mm a')}
+                  Resolved on{" "}
+                  {format(new Date(alert.resolvedAt), "MMM d, yyyy - h:mm a")}
                 </p>
               )}
             </div>
@@ -72,11 +120,26 @@ export default function Alerts() {
     );
   };
 
-  const filteredActiveAlerts = filter === 'all' ? activeAlerts : 
-    activeAlerts.filter(a => a.Severity === filter);
+  const filteredActiveAlerts = useMemo(() => {
+    return filter === "all"
+      ? activeAlerts
+      : activeAlerts.filter((a) => a.severity === filter);
+  }, [activeAlerts, filter]);
 
-  const filteredResolvedAlerts = filter === 'all' ? resolvedAlerts :
-    resolvedAlerts.filter(a => a.Severity === filter);
+  const filteredResolvedAlerts = useMemo(() => {
+    return filter === "all"
+      ? resolvedAlerts
+      : resolvedAlerts.filter((a) => a.severity === filter);
+  }, [resolvedAlerts, filter]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -108,7 +171,7 @@ export default function Alerts() {
         <Card className="bg-destructive/10 border-destructive border-2">
           <CardContent className="p-6">
             <div className="text-4xl font-bold text-destructive">
-              {activeAlerts.filter(a => a.Severity === 'Critical').length}
+              {alertCounts.critical}
             </div>
             <p className="text-lg font-semibold mt-2">Critical</p>
           </CardContent>
@@ -116,7 +179,7 @@ export default function Alerts() {
         <Card className="bg-orange-100 border-orange-500 border-2">
           <CardContent className="p-6">
             <div className="text-4xl font-bold text-orange-700">
-              {activeAlerts.filter(a => a.Severity === 'High').length}
+              {alertCounts.high}
             </div>
             <p className="text-lg font-semibold mt-2">High</p>
           </CardContent>
@@ -124,7 +187,7 @@ export default function Alerts() {
         <Card className="bg-yellow-100 border-yellow-500 border-2">
           <CardContent className="p-6">
             <div className="text-4xl font-bold text-yellow-700">
-              {activeAlerts.filter(a => a.Severity === 'Medium').length}
+              {alertCounts.medium}
             </div>
             <p className="text-lg font-semibold mt-2">Medium</p>
           </CardContent>
@@ -132,7 +195,7 @@ export default function Alerts() {
         <Card className="bg-success/10 border-success border-2">
           <CardContent className="p-6">
             <div className="text-4xl font-bold text-success">
-              {resolvedAlerts.length}
+              {alertCounts.resolved}
             </div>
             <p className="text-lg font-semibold mt-2">Resolved</p>
           </CardContent>
@@ -166,11 +229,18 @@ export default function Alerts() {
           ) : (
             filteredActiveAlerts
               .sort((a, b) => {
-                const severityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-                return severityOrder[a.Severity as keyof typeof severityOrder] - 
-                       severityOrder[b.Severity as keyof typeof severityOrder];
+                const severityOrder = {
+                  Critical: 0,
+                  High: 1,
+                  Medium: 2,
+                  Low: 3,
+                };
+                return (
+                  severityOrder[a.severity as keyof typeof severityOrder] -
+                  severityOrder[b.severity as keyof typeof severityOrder]
+                );
               })
-              .map(alert => <AlertCard key={alert.AlertID} alert={alert} />)
+              .map((alert) => <AlertCard key={alert.alertId} alert={alert} />)
           )}
         </TabsContent>
 
@@ -186,8 +256,12 @@ export default function Alerts() {
               </CardContent>
             </Card>
           ) : (
-            filteredResolvedAlerts.map(alert => (
-              <AlertCard key={alert.AlertID} alert={alert} showActions={false} />
+            filteredResolvedAlerts.map((alert) => (
+              <AlertCard
+                key={alert.alertId}
+                alert={alert}
+                showActions={false}
+              />
             ))
           )}
         </TabsContent>

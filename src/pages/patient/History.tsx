@@ -1,32 +1,76 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { getVitalRecordsByPatientId } from '@/data/mockData';
-import { format } from 'date-fns';
-import { Heart, Activity, Droplets, Thermometer, TrendingUp } from 'lucide-react';
-
-const MOCK_PATIENT_ID = 1;
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import { format } from "date-fns";
+import {
+  Heart,
+  Activity,
+  Droplets,
+  Thermometer,
+  TrendingUp,
+  Loader2,
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useVitalRecords } from "@/hooks/useVitalRecords";
 
 export default function History() {
-  const [timeRange, setTimeRange] = useState('7');
-  const allVitals = getVitalRecordsByPatientId(MOCK_PATIENT_ID);
-  
-  const filteredVitals = allVitals
-    .filter((_, index) => index < parseInt(timeRange))
-    .reverse();
+  const { user } = useAuth();
+  const { vitalRecordsList, fetchVitalRecordsByPatient, isLoading } =
+    useVitalRecords();
+  const [timeRange, setTimeRange] = useState("7");
 
-  const chartData = filteredVitals.map(v => ({
-    date: format(new Date(v.DateLogged), 'MM/dd'),
-    systolic: v.BloodPressureSystolic,
-    diastolic: v.BloodPressureDiastolic,
-    heartRate: v.HeartRate,
-    glucose: v.GlucoseLevel,
-    temperature: v.Temperature,
-  }));
+  // Fetch vital records on mount
+  useEffect(() => {
+    if (user?.profileId) {
+      fetchVitalRecordsByPatient(user.profileId, 90); // Fetch up to 90 days
+    }
+  }, [user?.profileId]);
 
-  const VitalChart = ({ title, dataKey, color, min, max, unit, icon: Icon }: any) => (
+  // Filter and prepare data based on time range
+  const filteredVitals = useMemo(() => {
+    if (!vitalRecordsList?.records) return [];
+
+    const limit = parseInt(timeRange);
+    return vitalRecordsList.records.slice(0, limit).reverse();
+  }, [vitalRecordsList, timeRange]);
+
+  const chartData = useMemo(() => {
+    return filteredVitals.map((v) => ({
+      date: format(new Date(v.dateLogged), "MM/dd"),
+      systolic: v.bloodPressureSystolic || 0,
+      diastolic: v.bloodPressureDiastolic || 0,
+      heartRate: v.heartRate || 0,
+      glucose: v.glucoseLevel || 0,
+      temperature: v.temperature || 0,
+    }));
+  }, [filteredVitals]);
+
+  const VitalChart = ({
+    title,
+    dataKey,
+    color,
+    min,
+    max,
+    unit,
+    icon: Icon,
+  }: any) => (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -55,8 +99,18 @@ export default function History() {
                 return null;
               }}
             />
-            <ReferenceLine y={min} stroke="#ef4444" strokeDasharray="3 3" label="Min" />
-            <ReferenceLine y={max} stroke="#ef4444" strokeDasharray="3 3" label="Max" />
+            <ReferenceLine
+              y={min}
+              stroke="#ef4444"
+              strokeDasharray="3 3"
+              label="Min"
+            />
+            <ReferenceLine
+              y={max}
+              stroke="#ef4444"
+              strokeDasharray="3 3"
+              label="Max"
+            />
             <Line
               type="monotone"
               dataKey={dataKey}
@@ -71,12 +125,48 @@ export default function History() {
     </Card>
   );
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // No data state
+  if (!vitalRecordsList || vitalRecordsList.records.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Vital Signs History</h1>
+          <p className="text-xl text-muted-foreground">
+            Track your health trends over time
+          </p>
+        </div>
+        <Card>
+          <CardContent className="p-12 text-center">
+            <TrendingUp className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-xl text-muted-foreground mb-4">
+              No vital signs recorded yet.
+            </p>
+            <p className="text-muted-foreground">
+              Start logging your vital signs to see trends and charts.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-4xl font-bold mb-2">Vital Signs History</h1>
-          <p className="text-xl text-muted-foreground">Track your health trends over time</p>
+          <p className="text-xl text-muted-foreground">
+            Track your health trends over time
+          </p>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger className="w-48 h-12 text-lg">
@@ -171,10 +261,32 @@ export default function History() {
                   <XAxis dataKey="date" />
                   <YAxis domain={[60, 160]} />
                   <Tooltip />
-                  <ReferenceLine y={140} stroke="#ef4444" strokeDasharray="3 3" label="Max Systolic" />
-                  <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label="Max Diastolic" />
-                  <Line type="monotone" dataKey="systolic" stroke="hsl(var(--primary))" strokeWidth={3} name="Systolic" />
-                  <Line type="monotone" dataKey="diastolic" stroke="hsl(var(--secondary))" strokeWidth={3} name="Diastolic" />
+                  <ReferenceLine
+                    y={140}
+                    stroke="#ef4444"
+                    strokeDasharray="3 3"
+                    label="Max Systolic"
+                  />
+                  <ReferenceLine
+                    y={90}
+                    stroke="#ef4444"
+                    strokeDasharray="3 3"
+                    label="Max Diastolic"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="systolic"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    name="Systolic"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="diastolic"
+                    stroke="hsl(var(--secondary))"
+                    strokeWidth={3}
+                    name="Diastolic"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -237,12 +349,25 @@ export default function History() {
               </thead>
               <tbody>
                 {filteredVitals.slice(0, 10).map((vital) => (
-                  <tr key={vital.RecordID} className="border-b border-border hover:bg-muted/50">
-                    <td className="p-3">{format(new Date(vital.DateLogged), 'MMM d, h:mm a')}</td>
-                    <td className="p-3 font-semibold">{vital.BloodPressureSystolic}/{vital.BloodPressureDiastolic}</td>
-                    <td className="p-3 font-semibold">{vital.HeartRate} bpm</td>
-                    <td className="p-3 font-semibold">{vital.GlucoseLevel} mg/dL</td>
-                    <td className="p-3 font-semibold">{vital.Temperature} °F</td>
+                  <tr
+                    key={vital.recordId}
+                    className="border-b border-border hover:bg-muted/50"
+                  >
+                    <td className="p-3">{vital.dateLoggedFormatted}</td>
+                    <td className="p-3 font-semibold">
+                      {vital.bloodPressure || "N/A"}
+                    </td>
+                    <td className="p-3 font-semibold">
+                      {vital.heartRate ? `${vital.heartRate} bpm` : "N/A"}
+                    </td>
+                    <td className="p-3 font-semibold">
+                      {vital.glucoseLevel
+                        ? `${vital.glucoseLevel} mg/dL`
+                        : "N/A"}
+                    </td>
+                    <td className="p-3 font-semibold">
+                      {vital.temperature ? `${vital.temperature} °F` : "N/A"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

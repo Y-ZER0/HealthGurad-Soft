@@ -5,16 +5,26 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { authApi, LoginResponse } from "@/lib/api/auth.api";
+import {
+  authApi,
+  LoginResponse,
+  AdminUser,
+  RegisterPatientRequest,
+  RegisterDoctorRequest,
+} from "@/lib/api/auth.api";
+import { adminApi } from "@/lib/api/admin.api";
 
 interface AuthContextType {
   user: LoginResponse | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  registerPatient: (data: any) => Promise<void>;
-  registerDoctor: (data: any) => Promise<void>;
+  registerPatient: (data: RegisterPatientRequest) => Promise<void>;
+  registerDoctor: (data: RegisterDoctorRequest) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
+  getAllUsers: () => Promise<AdminUser[]>;
+  assignDoctor: (userId: number, doctorId: number) => Promise<void>;
+  deleteUser: (userId: number) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -58,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const registerPatient = async (data: any) => {
+  const registerPatient = async (data: RegisterPatientRequest) => {
     const response = await authApi.registerPatient(data);
 
     if (response.success && response.data) {
@@ -70,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const registerDoctor = async (data: any) => {
+  const registerDoctor = async (data: RegisterDoctorRequest) => {
     const response = await authApi.registerDoctor(data);
 
     if (response.success && response.data) {
@@ -88,6 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const getAllUsers = async (): Promise<AdminUser[]> => {
+    return authApi.getAllUsers();
+  };
+
+  const assignDoctor = async (userId: number, doctorId: number) => {
+    return adminApi.assignDoctor(userId, doctorId);
+  };
+
+  const deleteUser = async (userId: number) => {
+    return adminApi.deleteUser(userId);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -98,6 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         registerDoctor,
         logout,
         isAuthenticated: !!user,
+        getAllUsers,
+        assignDoctor,
+        deleteUser,
       }}
     >
       {children}

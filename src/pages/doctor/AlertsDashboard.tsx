@@ -1,49 +1,103 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, Filter, Users, CheckCircle } from 'lucide-react';
-import { getActiveAlerts, mockAlerts, getPatientById, getDoctorById } from '@/data/mockData';
-import { format } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-
-const MOCK_DOCTOR_ID = 1;
+import { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertTriangle,
+  Filter,
+  Users,
+  CheckCircle,
+  Loader2,
+} from "lucide-react";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useAlerts } from "@/hooks/useAlerts";
 
 export default function AlertsDashboard() {
   const { toast } = useToast();
-  const [alerts, setAlerts] = useState(mockAlerts);
-  const [filter, setFilter] = useState<string>('all');
-  
-  const activeAlerts = alerts.filter(a => a.Status === 'Active');
+  const { user } = useAuth();
+  const {
+    alerts,
+    alertCounts,
+    fetchActiveAlertsByDoctor,
+    fetchAlertCounts,
+    resolveAlert,
+    isLoading,
+  } = useAlerts();
+  const [filter, setFilter] = useState<string>("all");
 
-  const criticalAlerts = activeAlerts.filter(a => a.Severity === 'Critical');
-  const highAlerts = activeAlerts.filter(a => a.Severity === 'High');
-  const mediumAlerts = activeAlerts.filter(a => a.Severity === 'Medium');
-  const resolvedAlerts = alerts.filter(a => a.Status === 'Resolved');
+  // Fetch alerts on mount
+  useEffect(() => {
+    if (user?.profileId) {
+      fetchActiveAlertsByDoctor(user.profileId);
+      fetchAlertCounts(user.profileId);
+    }
+  }, [user?.profileId]);
 
-  const handleResolveAlert = (alertId: number) => {
-    setAlerts(prev =>
-      prev.map(a => 
-        a.AlertID === alertId 
-          ? { 
-              ...a, 
-              Status: 'Resolved' as const,
-              ResolvedAt: new Date().toISOString(),
-              ResolvedBy: MOCK_DOCTOR_ID
-            } 
-          : a
-      )
-    );
-    toast({
-      title: 'Alert Resolved',
-      description: 'The patient alert has been successfully resolved',
-    });
+  // Separate active and resolved alerts
+  const activeAlerts = useMemo(
+    () => alerts.filter((a) => a.status === "Active"),
+    [alerts]
+  );
+
+  const resolvedAlerts = useMemo(
+    () => alerts.filter((a) => a.status === "Resolved"),
+    [alerts]
+  );
+
+  // Count by severity
+  const criticalAlerts = useMemo(
+    () => activeAlerts.filter((a) => a.severity === "Critical"),
+    [activeAlerts]
+  );
+
+  const highAlerts = useMemo(
+    () => activeAlerts.filter((a) => a.severity === "High"),
+    [activeAlerts]
+  );
+
+  const mediumAlerts = useMemo(
+    () => activeAlerts.filter((a) => a.severity === "Medium"),
+    [activeAlerts]
+  );
+
+  const handleResolveAlert = async (alertId: number) => {
+    if (!user?.profileId) return;
+
+    try {
+      await resolveAlert(alertId, user.profileId);
+      toast({
+        title: "Alert Resolved",
+        description: "The patient alert has been successfully resolved",
+      });
+      // Refetch alert counts after resolving
+      fetchAlertCounts(user.profileId);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resolve alert",
+        variant: "destructive",
+      });
+    }
   };
 
-  const filteredActiveAlerts = filter === 'all' ? activeAlerts :
-    activeAlerts.filter(a => a.Severity === filter);
+  const filteredActiveAlerts = useMemo(() => {
+    return filter === "all"
+      ? activeAlerts
+      : activeAlerts.filter((a) => a.severity === filter);
+  }, [activeAlerts, filter]);
+
+  // Loading state
+  if (isLoading && alerts.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -76,8 +130,12 @@ export default function AlertsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-semibold">Critical</p>
-                <p className="text-4xl font-bold text-destructive mt-2">{criticalAlerts.length}</p>
+                <p className="text-sm text-muted-foreground font-semibold">
+                  Critical
+                </p>
+                <p className="text-4xl font-bold text-destructive mt-2">
+                  {alertCounts?.criticalCount || criticalAlerts.length}
+                </p>
               </div>
               <AlertTriangle className="h-12 w-12 text-destructive/30" />
             </div>
@@ -88,8 +146,12 @@ export default function AlertsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-semibold">High Priority</p>
-                <p className="text-4xl font-bold text-orange-600 mt-2">{highAlerts.length}</p>
+                <p className="text-sm text-muted-foreground font-semibold">
+                  High Priority
+                </p>
+                <p className="text-4xl font-bold text-orange-600 mt-2">
+                  {alertCounts?.highCount || highAlerts.length}
+                </p>
               </div>
               <AlertTriangle className="h-12 w-12 text-orange-300" />
             </div>
@@ -100,8 +162,12 @@ export default function AlertsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-semibold">Medium</p>
-                <p className="text-4xl font-bold text-yellow-600 mt-2">{mediumAlerts.length}</p>
+                <p className="text-sm text-muted-foreground font-semibold">
+                  Medium
+                </p>
+                <p className="text-4xl font-bold text-yellow-600 mt-2">
+                  {alertCounts?.mediumCount || mediumAlerts.length}
+                </p>
               </div>
               <AlertTriangle className="h-12 w-12 text-yellow-300" />
             </div>
@@ -112,8 +178,12 @@ export default function AlertsDashboard() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-semibold">Resolved</p>
-                <p className="text-4xl font-bold text-success mt-2">{resolvedAlerts.length}</p>
+                <p className="text-sm text-muted-foreground font-semibold">
+                  Resolved
+                </p>
+                <p className="text-4xl font-bold text-success mt-2">
+                  {alertCounts?.resolvedCount || resolvedAlerts.length}
+                </p>
               </div>
               <AlertTriangle className="h-12 w-12 text-success/30" />
             </div>
@@ -148,131 +218,179 @@ export default function AlertsDashboard() {
           ) : (
             filteredActiveAlerts
               .sort((a, b) => {
-                const severityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
-                return severityOrder[a.Severity as keyof typeof severityOrder] -
-                       severityOrder[b.Severity as keyof typeof severityOrder];
-              })
-              .map(alert => {
-                const patient = getPatientById(alert.PatientID);
-                
+                const severityOrder = {
+                  Critical: 0,
+                  High: 1,
+                  Medium: 2,
+                  Low: 3,
+                };
                 return (
-                  <Card
-                    key={alert.AlertID}
-                    className={`border-2 ${
-                      alert.Severity === 'Critical' ? 'border-destructive shadow-lg' :
-                      alert.Severity === 'High' ? 'border-orange-500' :
-                      alert.Severity === 'Medium' ? 'border-yellow-500' :
-                      'border-green-500'
-                    }`}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                              alert.Severity === 'Critical' ? 'bg-destructive/20 text-destructive' :
-                              alert.Severity === 'High' ? 'bg-orange-100 text-orange-700' :
-                              'bg-yellow-100 text-yellow-700'
-                            }`}>
-                              {patient?.Name.split(' ').map(n => n[0]).join('')}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-2xl font-bold">{patient?.Name}</h3>
-                                <Badge variant="outline" className="text-sm">
-                                  {patient?.Age} yrs
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(alert.Timestamp), 'MMM d, yyyy - h:mm a')}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="ml-15 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-xl font-semibold">{alert.AlertType}</h4>
-                              <Badge variant={alert.Severity === 'Critical' ? 'destructive' : 'default'} className="text-base">
-                                {alert.Severity}
-                              </Badge>
-                            </div>
-                            <p className="text-lg">{alert.Description}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button 
-                            className="btn-large"
-                            onClick={() => handleResolveAlert(alert.AlertID)}
-                          >
-                            <CheckCircle className="h-5 w-5 mr-2" />
-                            Resolve Alert
-                          </Button>
-                          <Link to={`/doctor/patient/${patient?.PatientID}`}>
-                            <Button variant="outline" className="btn-large">
-                              View Patient
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  severityOrder[a.severity as keyof typeof severityOrder] -
+                  severityOrder[b.severity as keyof typeof severityOrder]
                 );
               })
+              .map((alert) => (
+                <Card
+                  key={alert.alertId}
+                  className={`border-2 ${
+                    alert.severity === "Critical"
+                      ? "border-destructive shadow-lg"
+                      : alert.severity === "High"
+                      ? "border-orange-500"
+                      : alert.severity === "Medium"
+                      ? "border-yellow-500"
+                      : "border-green-500"
+                  }`}
+                >
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div
+                            className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
+                              alert.severity === "Critical"
+                                ? "bg-destructive/20 text-destructive"
+                                : alert.severity === "High"
+                                ? "bg-orange-100 text-orange-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {alert.patientName
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-2xl font-bold">
+                                {alert.patientName}
+                              </h3>
+                              <Badge variant="outline" className="text-sm">
+                                {alert.patientAge} yrs
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {alert.timestampFormatted}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="ml-15 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xl font-semibold">
+                              {alert.alertType}
+                            </h4>
+                            <Badge
+                              variant={
+                                alert.severity === "Critical"
+                                  ? "destructive"
+                                  : "default"
+                              }
+                              className="text-base"
+                            >
+                              {alert.severity}
+                            </Badge>
+                          </div>
+                          <p className="text-lg">{alert.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          className="btn-large"
+                          onClick={() => handleResolveAlert(alert.alertId)}
+                          disabled={isLoading}
+                        >
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          Resolve Alert
+                        </Button>
+                        <Link to={`/doctor/patient/${alert.patientId}`}>
+                          <Button variant="outline" className="btn-large">
+                            View Patient
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
           )}
         </TabsContent>
 
         <TabsContent value="resolved" className="space-y-4">
-          {resolvedAlerts.map(alert => {
-            const patient = getPatientById(alert.PatientID);
-            const resolvedByDoctor = alert.ResolvedBy ? getDoctorById(alert.ResolvedBy) : null;
-            
-            return (
-              <Card key={alert.AlertID} className="border-success">
+          {resolvedAlerts.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <CheckCircle className="h-20 w-20 mx-auto mb-4 text-success" />
+                <h3 className="text-2xl font-bold mb-2">
+                  No Resolved Alerts Yet
+                </h3>
+                <p className="text-lg text-muted-foreground">
+                  Resolved alerts will appear here
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            resolvedAlerts.map((alert) => (
+              <Card key={alert.alertId} className="border-success">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full bg-success/20 text-success flex items-center justify-center text-lg font-bold">
-                          {patient?.Name.split(' ').map(n => n[0]).join('')}
+                          {alert.patientName
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold">{patient?.Name}</h3>
+                          <h3 className="text-2xl font-bold">
+                            {alert.patientName}
+                          </h3>
                           <p className="text-sm text-muted-foreground">
-                            Alert: {format(new Date(alert.Timestamp), 'MMM d, yyyy - h:mm a')}
+                            Alert: {alert.timestampFormatted}
                           </p>
                         </div>
                       </div>
 
                       <div className="ml-15 space-y-2">
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xl font-semibold">{alert.AlertType}</h4>
-                          <Badge variant="default" className="bg-success text-base">
+                          <h4 className="text-xl font-semibold">
+                            {alert.alertType}
+                          </h4>
+                          <Badge
+                            variant="default"
+                            className="bg-success text-base"
+                          >
                             Resolved
                           </Badge>
                         </div>
-                        <p className="text-lg">{alert.Description}</p>
-                        {alert.ResolvedAt && (
+                        <p className="text-lg">{alert.description}</p>
+                        {alert.resolvedAt && (
                           <div className="text-sm text-muted-foreground mt-2">
-                            <p>Resolved: {format(new Date(alert.ResolvedAt), 'MMM d, yyyy - h:mm a')}</p>
-                            {resolvedByDoctor && (
-                              <p>By: Dr. {resolvedByDoctor.Name}</p>
+                            <p>
+                              Resolved:{" "}
+                              {format(
+                                new Date(alert.resolvedAt),
+                                "MMM d, yyyy - h:mm a"
+                              )}
+                            </p>
+                            {alert.resolvedByDoctorName && (
+                              <p>By: Dr. {alert.resolvedByDoctorName}</p>
                             )}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <Link to={`/doctor/patient/${patient?.PatientID}`}>
-                      <Button variant="outline">
-                        View Details
-                      </Button>
+                    <Link to={`/doctor/patient/${alert.patientId}`}>
+                      <Button variant="outline">View Details</Button>
                     </Link>
                   </div>
                 </CardContent>
               </Card>
-            );
-          })}
+            ))
+          )}
         </TabsContent>
       </Tabs>
     </div>

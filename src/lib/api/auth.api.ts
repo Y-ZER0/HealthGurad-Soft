@@ -17,6 +17,17 @@ export interface RegisterPatientRequest {
   emergencyContact?: string;
 }
 
+export interface RegisterDoctorRequest {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  name: string;
+  contactInfo: string;
+  specialty: string;
+  licenseNumber: string;
+}
+
 export interface LoginResponse {
   userId: number;
   username: string;
@@ -31,6 +42,19 @@ export interface AuthResponse {
   success: boolean;
   message: string;
   data?: LoginResponse;
+}
+
+export interface AdminUser {
+  userId: number;
+  username: string;
+  email: string;
+  role: string;
+  patientId?: number;
+  age?: number;
+  gender?: string;
+  assignedDoctorId?: number;
+  doctorId?: number;
+  specialty?: string;
 }
 
 class AuthApi extends ApiClient {
@@ -48,7 +72,7 @@ class AuthApi extends ApiClient {
     });
   }
 
-  async registerDoctor(data: any): Promise<AuthResponse> {
+  async registerDoctor(data: RegisterDoctorRequest): Promise<AuthResponse> {
     return this.request<AuthResponse>("/auth/register/doctor", {
       method: "POST",
       body: JSON.stringify(data),
@@ -60,6 +84,10 @@ class AuthApi extends ApiClient {
       method: "POST",
       body: JSON.stringify(token),
     });
+  }
+
+  async getAllUsers(): Promise<AdminUser[]> {
+    return this.request<AdminUser[]>("/auth/users");
   }
 }
 

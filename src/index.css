@@ -39,13 +39,13 @@ All colors MUST be HSL.
     /* Alert System Colors */
     --success: 145 70% 45%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 45 95% 55%;
     --warning-foreground: 210 25% 15%;
-    
+
     --alert-high: 25 95% 55%;
     --alert-high-foreground: 0 0% 100%;
-    
+
     --destructive: 0 85% 55%;
     --destructive-foreground: 0 0% 100%;
 
@@ -55,11 +55,11 @@ All colors MUST be HSL.
     --ring: 210 95% 35%;
 
     --radius: 0.75rem;
-    
+
     /* Shadows for depth */
     --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
     --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.12);
-    
+
     /* Transitions */
     --transition-smooth: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -106,13 +106,13 @@ All colors MUST be HSL.
 
     --success: 145 60% 40%;
     --success-foreground: 0 0% 100%;
-    
+
     --warning: 45 90% 50%;
     --warning-foreground: 210 25% 15%;
-    
+
     --alert-high: 25 90% 50%;
     --alert-high-foreground: 0 0% 100%;
-    
+
     --destructive: 0 75% 50%;
     --destructive-foreground: 0 0% 100%;
 
@@ -141,7 +141,12 @@ All colors MUST be HSL.
     line-height: 1.6;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-semibold;
   }
 

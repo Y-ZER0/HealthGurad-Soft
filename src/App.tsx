@@ -4,6 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { DoctorProvider } from "@/contexts/DoctorContext";
+import { PatientProvider } from "@/contexts/PatientContext ";
+import { AlertThresholdsProvider } from "@/contexts/AlertThresholdsContext";
+import { VitalRecordsProvider } from "@/contexts/VitalRecordsContext";
+import { MedicationsProvider } from "@/contexts/MedicationsContext";
+import { AlertsProvider } from "@/contexts/AlertsContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "@/components/Layout";
 
@@ -23,6 +29,7 @@ import DoctorDashboard from "@/pages/doctor/Dashboard";
 import PatientList from "@/pages/doctor/PatientList";
 import PatientDetail from "@/pages/doctor/PatientDetail";
 import AlertsDashboard from "@/pages/doctor/AlertsDashboard";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
 
 import NotFound from "./pages/NotFound";
 
@@ -97,11 +104,9 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Layout>
-              {user?.role === "Patient" ? (
-                <PatientDashboard />
-              ) : (
-                <Navigate to="/doctor" replace />
-              )}
+              {user?.role === "Patient" && <PatientDashboard />}
+              {user?.role === "Doctor" && <Navigate to="/doctor" replace />}
+              {user?.role === "Admin" && <Navigate to="/admin" replace />}
             </Layout>
           </ProtectedRoute>
         }
@@ -191,6 +196,18 @@ const AppRoutes = () => {
         }
       />
 
+      {/* Admin Route */}
+      <Route
+        path="/admin"
+        element={
+          <RoleProtectedRoute allowedRoles={["Admin"]}>
+            <Layout isAdmin={true}>
+              <AdminDashboard />
+            </Layout>
+          </RoleProtectedRoute>
+        }
+      />
+
       {/* Catch-all */}
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -205,7 +222,19 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <AppRoutes />
+            <DoctorProvider>
+              <PatientProvider>
+                <AlertThresholdsProvider>
+                  <VitalRecordsProvider>
+                    <MedicationsProvider>
+                      <AlertsProvider>
+                        <AppRoutes />
+                      </AlertsProvider>
+                    </MedicationsProvider>
+                  </VitalRecordsProvider>
+                </AlertThresholdsProvider>
+              </PatientProvider>
+            </DoctorProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

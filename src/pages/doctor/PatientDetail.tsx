@@ -1,87 +1,277 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import {
-  User, Heart, Activity, AlertTriangle, Pill, MessageSquare,
-  ArrowLeft, Settings, Phone, Mail, TrendingUp, CheckCircle, Trash2
-} from 'lucide-react';
+  User,
+  Heart,
+  Activity,
+  AlertTriangle,
+  Pill,
+  MessageSquare,
+  ArrowLeft,
+  Settings,
+  Phone,
+  Mail,
+  TrendingUp,
+  CheckCircle,
+  Trash2,
+  Loader2,
+} from "lucide-react";
+import { format } from "date-fns";
 import {
-  getPatientById,
-  getVitalRecordsByPatientId,
-  getAlertsByPatientId,
-  getMedicationsByPatientId,
-  getAlertThresholdsByPatientId,
-  getDoctorById,
-  getMedicationAdherence,
-} from '@/data/mockData';
-import { format } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-
-const MOCK_DOCTOR_ID = 1;
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import { useAuth } from "@/hooks/useAuth";
+import { usePatient } from "@/hooks/usePatient";
+import { useAlerts } from "@/hooks/useAlerts";
+import { useAlertThresholds } from "@/hooks/useAlertThresholds";
+import { useMedications } from "@/hooks/useMedications";
+import { useVitalRecords } from "@/hooks/useVitalRecords";
 
 export default function PatientDetail() {
   const { patientId } = useParams();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
 
-  const patient = getPatientById(Number(patientId));
-  const vitals = getVitalRecordsByPatientId(Number(patientId));
-  const [alerts, setAlerts] = useState(getAlertsByPatientId(Number(patientId)));
-  const [medications, setMedications] = useState(getMedicationsByPatientId(Number(patientId)));
-  const thresholdsList = getAlertThresholdsByPatientId(Number(patientId));
-  const adherence = getMedicationAdherence(Number(patientId));
+  // Contexts
+  const {
+    patientDetail,
+    fetchPatientDetail,
+    isLoading: patientLoading,
+  } = usePatient();
+  const {
+    alerts,
+    fetchAlertsByPatient,
+    resolveAlert,
+    isLoading: alertsLoading,
+  } = useAlerts();
+  const {
+    thresholds,
+    fetchPatientThresholds,
+    updatePatientThresholds,
+    isLoading: thresholdsLoading,
+  } = useAlertThresholds();
+  const {
+    medications,
+    fetchMedicationsByPatient,
+    createMedication,
+    discontinueMedication,
+    isLoading: medsLoading,
+  } = useMedications();
+  const {
+    vitalRecordsList,
+    fetchVitalRecordsByPatient,
+    isLoading: vitalsLoading,
+  } = useVitalRecords();
 
-  // Convert new threshold structure to old format for compatibility
-  const threshold = thresholdsList.reduce((acc, t) => {
-    if (t.VitalType === 'BloodPressure') {
-      acc.BPSystolicMin = t.MinValue || 110;
-      acc.BPSystolicMax = t.MaxValue || 140;
-      acc.BPDiastolicMin = 70;
-      acc.BPDiastolicMax = 90;
-    } else if (t.VitalType === 'HeartRate') {
-      acc.HeartRateMin = t.MinValue || 60;
-      acc.HeartRateMax = t.MaxValue || 100;
-    } else if (t.VitalType === 'Glucose') {
-      acc.GlucoseMin = t.MinValue || 70;
-      acc.GlucoseMax = t.MaxValue || 130;
-    } else if (t.VitalType === 'Temperature') {
-      acc.TemperatureMin = t.MinValue || 97.0;
-      acc.TemperatureMax = t.MaxValue || 99.5;
-    }
-    return acc;
-  }, {} as any);
-
-  const [thresholds, setThresholds] = useState(threshold || {
-    BPSystolicMin: 110,
-    BPSystolicMax: 140,
-    BPDiastolicMin: 70,
-    BPDiastolicMax: 90,
-    HeartRateMin: 60,
-    HeartRateMax: 100,
-    GlucoseMin: 70,
-    GlucoseMax: 130,
-    TemperatureMin: 97.0,
-    TemperatureMax: 99.5,
+  // Local state for forms
+  const [thresholdForm, setThresholdForm] = useState({
+    systolicMin: 110,
+    systolicMax: 140,
+    diastolicMin: 70,
+    diastolicMax: 90,
+    heartRateMin: 60,
+    heartRateMax: 100,
+    glucoseMin: 70,
+    glucoseMax: 130,
   });
 
   const [newMedication, setNewMedication] = useState({
-    name: '',
-    dosage: '',
-    frequency: 'Once daily',
-    timeOfDay: '08:00',
+    name: "",
+    dosage: "",
+    frequency: "Once daily",
+    timeOfDay: "08:00",
+    instructions: "",
   });
 
-  const latestVital = vitals[0];
-  const activeAlerts = alerts.filter(a => a.Status === 'Active');
+  // Fetch all data on mount
+  useEffect(() => {
+    if (patientId) {
+      const id = Number(patientId);
+      fetchPatientDetail(id);
+      fetchAlertsByPatient(id);
+      fetchPatientThresholds(id);
+      fetchMedicationsByPatient(id);
+      fetchVitalRecordsByPatient(id, 30); // Last 30 records for charts
+    }
+  }, [patientId]);
 
-  if (!patient) {
+  // Update threshold form when data loads
+  useEffect(() => {
+    if (thresholds) {
+      setThresholdForm({
+        systolicMin: thresholds.systolicMin || 110,
+        systolicMax: thresholds.systolicMax || 140,
+        diastolicMin: thresholds.diastolicMin || 70,
+        diastolicMax: thresholds.diastolicMax || 90,
+        heartRateMin: thresholds.heartRateMin || 60,
+        heartRateMax: thresholds.heartRateMax || 100,
+        glucoseMin: thresholds.glucoseMin || 70,
+        glucoseMax: thresholds.glucoseMax || 130,
+      });
+    }
+  }, [thresholds]);
+
+  // Computed values
+  const activeAlerts = useMemo(
+    () => alerts.filter((a) => a.status === "Active"),
+    [alerts]
+  );
+
+  const vitalsForChart = useMemo(() => {
+    if (!vitalRecordsList?.records) return [];
+    return vitalRecordsList.records
+      .slice(0, 14)
+      .reverse()
+      .map((v) => ({
+        date: format(new Date(v.dateLogged), "MM/dd"),
+        systolic: v.bloodPressureSystolic || 0,
+        heartRate: v.heartRate || 0,
+        glucose: v.glucoseLevel || 0,
+      }));
+  }, [vitalRecordsList]);
+
+  // Handlers
+  const handleSaveThresholds = async () => {
+    if (!patientId || !user?.profileId) return;
+
+    try {
+      await updatePatientThresholds(Number(patientId), {
+        patientId: Number(patientId),
+        doctorId: user.profileId,
+        systolicMin: thresholdForm.systolicMin,
+        systolicMax: thresholdForm.systolicMax,
+        diastolicMin: thresholdForm.diastolicMin,
+        diastolicMax: thresholdForm.diastolicMax,
+        heartRateMin: thresholdForm.heartRateMin,
+        heartRateMax: thresholdForm.heartRateMax,
+        glucoseMin: thresholdForm.glucoseMin,
+        glucoseMax: thresholdForm.glucoseMax,
+      });
+
+      toast({
+        title: "Thresholds Updated",
+        description: "Alert thresholds have been saved successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update thresholds",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAddMedication = async () => {
+    if (
+      !newMedication.name ||
+      !newMedication.dosage ||
+      !patientId ||
+      !user?.profileId
+    ) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required medication details",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createMedication({
+        patientId: Number(patientId),
+        medicineName: newMedication.name,
+        dosage: newMedication.dosage,
+        frequency: newMedication.frequency,
+        timeOfDay: newMedication.timeOfDay,
+        instructions: newMedication.instructions,
+        prescribedBy: user.profileId,
+      });
+
+      toast({
+        title: "Medication Added",
+        description: `${newMedication.name} has been prescribed successfully`,
+      });
+
+      setNewMedication({
+        name: "",
+        dosage: "",
+        frequency: "Once daily",
+        timeOfDay: "08:00",
+        instructions: "",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add medication",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResolveAlert = async (alertId: number) => {
+    if (!user?.profileId) return;
+
+    try {
+      await resolveAlert(alertId, user.profileId);
+      toast({
+        title: "Alert Resolved",
+        description: "The alert has been successfully resolved",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resolve alert",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteMedication = async (
+    medicationId: number,
+    medicineName: string
+  ) => {
+    try {
+      await discontinueMedication(medicationId);
+      toast({
+        title: "Medication Discontinued",
+        description: `${medicineName} has been removed from the patient's medications`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to discontinue medication",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Loading state
+  if (patientLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Not found state
+  if (!patientDetail) {
     return (
       <div className="text-center py-12">
         <h1 className="text-3xl font-bold mb-4">Patient Not Found</h1>
@@ -91,70 +281,6 @@ export default function PatientDetail() {
       </div>
     );
   }
-
-  const handleSaveThresholds = () => {
-    toast({
-      title: 'Thresholds Updated',
-      description: 'Alert thresholds have been saved successfully',
-    });
-  };
-
-  const handleAddMedication = () => {
-    if (!newMedication.name || !newMedication.dosage) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all medication details',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    toast({
-      title: 'Medication Added',
-      description: `${newMedication.name} has been prescribed successfully`,
-    });
-
-    setNewMedication({
-      name: '',
-      dosage: '',
-      frequency: 'Once daily',
-      timeOfDay: '08:00',
-    });
-  };
-
-  const handleResolveAlert = (alertId: number) => {
-    setAlerts(prev =>
-      prev.map(a => 
-        a.AlertID === alertId 
-          ? { 
-              ...a, 
-              Status: 'Resolved' as const,
-              ResolvedAt: new Date().toISOString(),
-              ResolvedBy: MOCK_DOCTOR_ID
-            } 
-          : a
-      )
-    );
-    toast({
-      title: 'Alert Resolved',
-      description: 'The alert has been successfully resolved',
-    });
-  };
-
-  const handleDeleteMedication = (medicationId: number, medicineName: string) => {
-    setMedications(prev => prev.filter(med => med.MedicationID !== medicationId));
-    toast({
-      title: 'Medication Deleted',
-      description: `${medicineName} has been removed from the patient's medications`,
-    });
-  };
-
-  const chartData = vitals.slice(0, 14).reverse().map(v => ({
-    date: format(new Date(v.DateLogged), 'MM/dd'),
-    systolic: v.BloodPressureSystolic,
-    heartRate: v.HeartRate,
-    glucose: v.GlucoseLevel,
-  }));
 
   return (
     <div className="space-y-6">
@@ -167,9 +293,9 @@ export default function PatientDetail() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-4xl font-bold">{patient.Name}</h1>
+            <h1 className="text-4xl font-bold">{patientDetail.name}</h1>
             <p className="text-xl text-muted-foreground">
-              {patient.Age} years • {patient.Gender}
+              {patientDetail.age} years • {patientDetail.gender}
             </p>
           </div>
         </div>
@@ -186,7 +312,11 @@ export default function PatientDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-5 h-14">
           <TabsTrigger value="overview" className="text-base">
             <User className="h-5 w-5 mr-2" />
@@ -223,24 +353,48 @@ export default function PatientDetail() {
             <CardContent className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-base">Name</Label>
-                <p className="text-xl font-semibold mt-1">{patient.Name}</p>
+                <p className="text-xl font-semibold mt-1">
+                  {patientDetail.name}
+                </p>
               </div>
               <div>
                 <Label className="text-base">Age</Label>
-                <p className="text-xl font-semibold mt-1">{patient.Age} years</p>
+                <p className="text-xl font-semibold mt-1">
+                  {patientDetail.age} years
+                </p>
               </div>
               <div>
                 <Label className="text-base">Gender</Label>
-                <p className="text-xl font-semibold mt-1">{patient.Gender}</p>
+                <p className="text-xl font-semibold mt-1">
+                  {patientDetail.gender}
+                </p>
               </div>
               <div>
                 <Label className="text-base">Contact</Label>
-                <p className="text-xl font-semibold mt-1">{patient.ContactInfo}</p>
+                <p className="text-xl font-semibold mt-1">
+                  {patientDetail.contactInfo}
+                </p>
               </div>
+              {patientDetail.emergencyContact && (
+                <div>
+                  <Label className="text-base">Emergency Contact</Label>
+                  <p className="text-xl font-semibold mt-1">
+                    {patientDetail.emergencyContact}
+                  </p>
+                </div>
+              )}
+              {patientDetail.assignedDoctorName && (
+                <div>
+                  <Label className="text-base">Assigned Doctor</Label>
+                  <p className="text-xl font-semibold mt-1">
+                    Dr. {patientDetail.assignedDoctorName}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Latest Vitals */}
+          {/* Current Vitals */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -249,72 +403,106 @@ export default function PatientDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {latestVital ? (
+              {patientDetail.currentBloodPressureSystolic ? (
                 <div className="grid md:grid-cols-4 gap-4">
                   <Card className="bg-muted">
                     <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Blood Pressure</p>
+                      <p className="text-sm text-muted-foreground">
+                        Blood Pressure
+                      </p>
                       <p className="text-2xl font-bold text-primary mt-1">
-                        {latestVital.BloodPressureSystolic}/{latestVital.BloodPressureDiastolic}
+                        {patientDetail.currentBloodPressure || "N/A"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">mmHg</p>
                     </CardContent>
                   </Card>
-                  <Card className="bg-muted">
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Heart Rate</p>
-                      <p className="text-2xl font-bold text-secondary mt-1">
-                        {latestVital.HeartRate}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">bpm</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-muted">
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Blood Glucose</p>
-                      <p className="text-2xl font-bold text-warning mt-1">
-                        {latestVital.GlucoseLevel}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">mg/dL</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-muted">
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Temperature</p>
-                      <p className="text-2xl font-bold text-alert-high mt-1">
-                        {latestVital.Temperature}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">°F</p>
-                    </CardContent>
-                  </Card>
+                  {patientDetail.currentHeartRate && (
+                    <Card className="bg-muted">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">
+                          Heart Rate
+                        </p>
+                        <p className="text-2xl font-bold text-secondary mt-1">
+                          {patientDetail.currentHeartRate}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          bpm
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {patientDetail.currentGlucoseLevel && (
+                    <Card className="bg-muted">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">
+                          Blood Glucose
+                        </p>
+                        <p className="text-2xl font-bold text-warning mt-1">
+                          {patientDetail.currentGlucoseLevel}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          mg/dL
+                        </p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {patientDetail.currentTemperature && (
+                    <Card className="bg-muted">
+                      <CardContent className="p-4">
+                        <p className="text-sm text-muted-foreground">
+                          Temperature
+                        </p>
+                        <p className="text-2xl font-bold text-alert-high mt-1">
+                          {patientDetail.currentTemperature}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">°F</p>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               ) : (
-                <p className="text-center text-muted-foreground py-8">No vital signs recorded</p>
+                <p className="text-center text-muted-foreground py-8">
+                  No vital signs recorded
+                </p>
               )}
             </CardContent>
           </Card>
 
           {/* Alert Summary */}
-          <Card className={activeAlerts.length > 0 ? 'border-destructive border-2' : ''}>
+          <Card
+            className={
+              activeAlerts.length > 0 ? "border-destructive border-2" : ""
+            }
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-6 w-6 text-destructive" />
-                Alert Summary
+                Alert Summary ({patientDetail.activeAlertsCount})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {activeAlerts.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No active alerts</p>
+              {patientDetail.recentAlerts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No active alerts
+                </p>
               ) : (
                 <div className="space-y-3">
-                  {activeAlerts.map(alert => (
-                    <div key={alert.AlertID} className="p-4 bg-destructive/10 rounded-lg border border-destructive">
+                  {patientDetail.recentAlerts.map((alert) => (
+                    <div
+                      key={alert.alertId}
+                      className="p-4 bg-destructive/10 rounded-lg border border-destructive"
+                    >
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-semibold text-lg">{alert.AlertType}</h4>
-                          <p className="text-sm mt-1">{alert.Description}</p>
+                          <h4 className="font-semibold text-lg">
+                            {alert.alertType}
+                          </h4>
+                          <p className="text-sm mt-1">{alert.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {alert.timestampFormatted}
+                          </p>
                         </div>
-                        <Badge variant="destructive">{alert.Severity}</Badge>
+                        <Badge variant="destructive">{alert.severity}</Badge>
                       </div>
                     </div>
                   ))}
@@ -332,18 +520,31 @@ export default function PatientDetail() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData}>
+                <LineChart data={vitalsForChart}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip />
                   {thresholds && (
                     <>
-                      <ReferenceLine y={thresholds.BPSystolicMax} stroke="#ef4444" strokeDasharray="3 3" />
-                      <ReferenceLine y={thresholds.BPSystolicMin} stroke="#ef4444" strokeDasharray="3 3" />
+                      <ReferenceLine
+                        y={thresholds.systolicMax}
+                        stroke="#ef4444"
+                        strokeDasharray="3 3"
+                      />
+                      <ReferenceLine
+                        y={thresholds.systolicMin}
+                        stroke="#ef4444"
+                        strokeDasharray="3 3"
+                      />
                     </>
                   )}
-                  <Line type="monotone" dataKey="systolic" stroke="hsl(var(--primary))" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="systolic"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
@@ -356,18 +557,31 @@ export default function PatientDetail() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData}>
+                  <LineChart data={vitalsForChart}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
                     {thresholds && (
                       <>
-                        <ReferenceLine y={thresholds.HeartRateMax} stroke="#ef4444" strokeDasharray="3 3" />
-                        <ReferenceLine y={thresholds.HeartRateMin} stroke="#ef4444" strokeDasharray="3 3" />
+                        <ReferenceLine
+                          y={thresholds.heartRateMax}
+                          stroke="#ef4444"
+                          strokeDasharray="3 3"
+                        />
+                        <ReferenceLine
+                          y={thresholds.heartRateMin}
+                          stroke="#ef4444"
+                          strokeDasharray="3 3"
+                        />
                       </>
                     )}
-                    <Line type="monotone" dataKey="heartRate" stroke="hsl(var(--secondary))" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="heartRate"
+                      stroke="hsl(var(--secondary))"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -379,18 +593,31 @@ export default function PatientDetail() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={chartData}>
+                  <LineChart data={vitalsForChart}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
                     {thresholds && (
                       <>
-                        <ReferenceLine y={thresholds.GlucoseMax} stroke="#ef4444" strokeDasharray="3 3" />
-                        <ReferenceLine y={thresholds.GlucoseMin} stroke="#ef4444" strokeDasharray="3 3" />
+                        <ReferenceLine
+                          y={thresholds.glucoseMax}
+                          stroke="#ef4444"
+                          strokeDasharray="3 3"
+                        />
+                        <ReferenceLine
+                          y={thresholds.glucoseMin}
+                          stroke="#ef4444"
+                          strokeDasharray="3 3"
+                        />
                       </>
                     )}
-                    <Line type="monotone" dataKey="glucose" stroke="hsl(var(--warning))" strokeWidth={2} />
+                    <Line
+                      type="monotone"
+                      dataKey="glucose"
+                      stroke="hsl(var(--warning))"
+                      strokeWidth={2}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -416,8 +643,13 @@ export default function PatientDetail() {
                       <Label>Systolic Min</Label>
                       <Input
                         type="number"
-                        value={thresholds.BPSystolicMin}
-                        onChange={(e) => setThresholds({...thresholds, BPSystolicMin: Number(e.target.value)})}
+                        value={thresholdForm.systolicMin}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            systolicMin: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -425,8 +657,13 @@ export default function PatientDetail() {
                       <Label>Systolic Max</Label>
                       <Input
                         type="number"
-                        value={thresholds.BPSystolicMax}
-                        onChange={(e) => setThresholds({...thresholds, BPSystolicMax: Number(e.target.value)})}
+                        value={thresholdForm.systolicMax}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            systolicMax: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -434,8 +671,13 @@ export default function PatientDetail() {
                       <Label>Diastolic Min</Label>
                       <Input
                         type="number"
-                        value={thresholds.BPDiastolicMin}
-                        onChange={(e) => setThresholds({...thresholds, BPDiastolicMin: Number(e.target.value)})}
+                        value={thresholdForm.diastolicMin}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            diastolicMin: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -443,8 +685,13 @@ export default function PatientDetail() {
                       <Label>Diastolic Max</Label>
                       <Input
                         type="number"
-                        value={thresholds.BPDiastolicMax}
-                        onChange={(e) => setThresholds({...thresholds, BPDiastolicMax: Number(e.target.value)})}
+                        value={thresholdForm.diastolicMax}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            diastolicMax: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -458,8 +705,13 @@ export default function PatientDetail() {
                       <Label>HR Min (bpm)</Label>
                       <Input
                         type="number"
-                        value={thresholds.HeartRateMin}
-                        onChange={(e) => setThresholds({...thresholds, HeartRateMin: Number(e.target.value)})}
+                        value={thresholdForm.heartRateMin}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            heartRateMin: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -467,8 +719,13 @@ export default function PatientDetail() {
                       <Label>HR Max (bpm)</Label>
                       <Input
                         type="number"
-                        value={thresholds.HeartRateMax}
-                        onChange={(e) => setThresholds({...thresholds, HeartRateMax: Number(e.target.value)})}
+                        value={thresholdForm.heartRateMax}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            heartRateMax: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -476,8 +733,13 @@ export default function PatientDetail() {
                       <Label>Glucose Min</Label>
                       <Input
                         type="number"
-                        value={thresholds.GlucoseMin}
-                        onChange={(e) => setThresholds({...thresholds, GlucoseMin: Number(e.target.value)})}
+                        value={thresholdForm.glucoseMin}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            glucoseMin: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
@@ -485,16 +747,32 @@ export default function PatientDetail() {
                       <Label>Glucose Max</Label>
                       <Input
                         type="number"
-                        value={thresholds.GlucoseMax}
-                        onChange={(e) => setThresholds({...thresholds, GlucoseMax: Number(e.target.value)})}
+                        value={thresholdForm.glucoseMax}
+                        onChange={(e) =>
+                          setThresholdForm({
+                            ...thresholdForm,
+                            glucoseMax: Number(e.target.value),
+                          })
+                        }
                         className="h-12"
                       />
                     </div>
                   </div>
                 </div>
               </div>
-              <Button onClick={handleSaveThresholds} className="mt-6 btn-large">
-                Save Thresholds
+              <Button
+                onClick={handleSaveThresholds}
+                className="mt-6 btn-large"
+                disabled={thresholdsLoading}
+              >
+                {thresholdsLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Thresholds"
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -504,41 +782,63 @@ export default function PatientDetail() {
               <CardTitle>All Alerts</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {alerts.map(alert => (
-                <div
-                  key={alert.AlertID}
-                  className={`p-4 rounded-lg ${
-                    alert.Severity === 'Critical' ? 'bg-destructive/10 border border-destructive' :
-                    alert.Severity === 'High' ? 'bg-orange-100 border border-orange-500' :
-                    alert.Severity === 'Low' ? 'bg-green-100 border border-green-500' :
-                    'bg-yellow-100 border border-yellow-500'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-lg">{alert.AlertType}</h4>
-                      <p className="text-sm mt-1">{alert.Description}</p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {format(new Date(alert.Timestamp), 'MMM d, h:mm a')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={alert.Status === 'Resolved' ? 'default' : 'secondary'}>
-                        {alert.Status}
-                      </Badge>
-                      {alert.Status === 'Active' && (
-                        <Button 
-                          size="sm"
-                          onClick={() => handleResolveAlert(alert.AlertID)}
+              {alertsLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                </div>
+              ) : alerts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No alerts found
+                </p>
+              ) : (
+                alerts.map((alert) => (
+                  <div
+                    key={alert.alertId}
+                    className={`p-4 rounded-lg ${
+                      alert.severity === "Critical"
+                        ? "bg-destructive/10 border border-destructive"
+                        : alert.severity === "High"
+                        ? "bg-orange-100 border border-orange-500"
+                        : alert.severity === "Low"
+                        ? "bg-green-100 border border-green-500"
+                        : "bg-yellow-100 border border-yellow-500"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-lg">
+                          {alert.alertType}
+                        </h4>
+                        <p className="text-sm mt-1">{alert.description}</p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {alert.timestampFormatted}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            alert.status === "Resolved"
+                              ? "default"
+                              : "secondary"
+                          }
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Resolve
-                        </Button>
-                      )}
+                          {alert.status}
+                        </Badge>
+                        {alert.status === "Active" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleResolveAlert(alert.alertId)}
+                            disabled={alertsLoading}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Resolve
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -555,19 +855,29 @@ export default function PatientDetail() {
             <CardContent>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Medicine Name</Label>
+                  <Label>Medicine Name *</Label>
                   <Input
                     value={newMedication.name}
-                    onChange={(e) => setNewMedication({...newMedication, name: e.target.value})}
+                    onChange={(e) =>
+                      setNewMedication({
+                        ...newMedication,
+                        name: e.target.value,
+                      })
+                    }
                     placeholder="e.g., Lisinopril"
                     className="h-12"
                   />
                 </div>
                 <div>
-                  <Label>Dosage</Label>
+                  <Label>Dosage *</Label>
                   <Input
                     value={newMedication.dosage}
-                    onChange={(e) => setNewMedication({...newMedication, dosage: e.target.value})}
+                    onChange={(e) =>
+                      setNewMedication({
+                        ...newMedication,
+                        dosage: e.target.value,
+                      })
+                    }
                     placeholder="e.g., 10mg"
                     className="h-12"
                   />
@@ -576,7 +886,12 @@ export default function PatientDetail() {
                   <Label>Frequency</Label>
                   <select
                     value={newMedication.frequency}
-                    onChange={(e) => setNewMedication({...newMedication, frequency: e.target.value})}
+                    onChange={(e) =>
+                      setNewMedication({
+                        ...newMedication,
+                        frequency: e.target.value,
+                      })
+                    }
                     className="w-full h-12 px-3 rounded-lg border-2 border-border bg-background"
                   >
                     <option>Once daily</option>
@@ -590,13 +905,43 @@ export default function PatientDetail() {
                   <Input
                     type="time"
                     value={newMedication.timeOfDay}
-                    onChange={(e) => setNewMedication({...newMedication, timeOfDay: e.target.value})}
+                    onChange={(e) =>
+                      setNewMedication({
+                        ...newMedication,
+                        timeOfDay: e.target.value,
+                      })
+                    }
                     className="h-12"
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <Label>Instructions</Label>
+                  <Textarea
+                    value={newMedication.instructions}
+                    onChange={(e) =>
+                      setNewMedication({
+                        ...newMedication,
+                        instructions: e.target.value,
+                      })
+                    }
+                    placeholder="e.g., Take with food"
+                    className="h-20"
+                  />
+                </div>
               </div>
-              <Button onClick={handleAddMedication} className="mt-6 btn-large">
-                Add Medication
+              <Button
+                onClick={handleAddMedication}
+                className="mt-6 btn-large"
+                disabled={medsLoading}
+              >
+                {medsLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Medication"
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -606,26 +951,60 @@ export default function PatientDetail() {
               <CardTitle>Current Medications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {medications.map(med => (
-                <div key={med.MedicationID} className="p-4 bg-muted rounded-lg">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold text-lg">{med.MedicineName}</h4>
-                      <p className="text-muted-foreground mt-1">
-                        {med.Dosage} • {med.Frequency} • {med.TimeOfDay.join(', ')}
-                      </p>
-                    </div>
-                    <Button 
-                      variant="destructive" 
-                      size="icon"
-                      onClick={() => handleDeleteMedication(med.MedicationID, med.MedicineName)}
-                      className="h-9 w-9"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+              {medsLoading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
                 </div>
-              ))}
+              ) : medications.filter((m) => m.isActive).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No active medications
+                </p>
+              ) : (
+                medications
+                  .filter((m) => m.isActive)
+                  .map((med) => (
+                    <div
+                      key={med.medicationId}
+                      className="p-4 bg-muted rounded-lg"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-lg">
+                            {med.medicineName}
+                          </h4>
+                          <p className="text-muted-foreground mt-1">
+                            {med.dosage} • {med.frequency}
+                            {med.timeOfDay && ` • ${med.timeOfDay}`}
+                          </p>
+                          {med.instructions && (
+                            <p className="text-sm text-muted-foreground italic mt-2">
+                              {med.instructions}
+                            </p>
+                          )}
+                          {med.prescribedByDoctorName && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Prescribed by: {med.prescribedByDoctorName}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() =>
+                            handleDeleteMedication(
+                              med.medicationId,
+                              med.medicineName
+                            )
+                          }
+                          className="h-9 w-9"
+                          disabled={medsLoading}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -660,12 +1039,21 @@ export default function PatientDetail() {
             <CardContent>
               <div className="space-y-4">
                 <div className="p-4 bg-accent rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-2">2 days ago</p>
-                  <p>Please continue taking your blood pressure medication as prescribed.</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    2 days ago
+                  </p>
+                  <p>
+                    Please continue taking your blood pressure medication as
+                    prescribed.
+                  </p>
                 </div>
                 <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-2">5 days ago</p>
-                  <p>Your latest vitals look good. Keep up the healthy habits!</p>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    5 days ago
+                  </p>
+                  <p>
+                    Your latest vitals look good. Keep up the healthy habits!
+                  </p>
                 </div>
               </div>
             </CardContent>

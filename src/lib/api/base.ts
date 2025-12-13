@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "https://localhost:7208/api";
+  import.meta.env.VITE_API_BASE_URL || "https://healthguard-api.fly.dev/api";
 
 export class ApiClient {
   protected getAuthToken(): string | null {
@@ -32,6 +32,12 @@ export class ApiClient {
       throw new Error(
         error.message || `HTTP error! status: ${response.status}`
       );
+    }
+
+    // Handle empty response bodies (e.g., DELETE endpoints)
+    const contentLength = response.headers.get("content-length");
+    if (contentLength === "0" || response.status === 204) {
+      return undefined as T;
     }
 
     return response.json();

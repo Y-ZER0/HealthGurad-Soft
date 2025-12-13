@@ -16,9 +16,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface LayoutProps {
   children: React.ReactNode;
+  isAdmin?: boolean;
 }
 
-export const Layout = ({ children }: LayoutProps) => {
+export const Layout = ({ children, isAdmin = false }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -132,38 +133,44 @@ export const Layout = ({ children }: LayoutProps) => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Mobile Menu */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild className="lg:hidden">
-                <Button variant="outline" size="icon">
-                  {mobileMenuOpen ? <X /> : <Menu />}
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-64">
-                <nav className="flex flex-col gap-2 mt-8">
-                  <NavLinks mobile />
-                  <div className="mt-4 pt-4 border-t">
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start"
-                      onClick={handleLogout}
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Log out
+            {!isAdmin && (
+              <>
+                {/* Mobile Menu */}
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild className="lg:hidden">
+                    <Button variant="outline" size="icon">
+                      {mobileMenuOpen ? <X /> : <Menu />}
                     </Button>
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-64">
+                    <nav className="flex flex-col gap-2 mt-8">
+                      <NavLinks mobile />
+                      <div className="mt-4 pt-4 border-t">
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          onClick={handleLogout}
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Log out
+                        </Button>
+                      </div>
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+              </>
+            )}
           </div>
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden lg:block border-t border-border">
-          <div className="container mx-auto px-4 py-2 flex gap-2">
-            <NavLinks />
-          </div>
-        </nav>
+        {!isAdmin && (
+          <nav className="hidden lg:block border-t border-border">
+            <div className="container mx-auto px-4 py-2 flex gap-2">
+              <NavLinks />
+            </div>
+          </nav>
+        )}
       </header>
 
       {/* Main Content */}
